@@ -69,6 +69,6 @@ Vite prints a LAN URL. Open that on a phone on the same Wi-Fi.
 
 **Social preview:** Settings → General → Social preview → upload [`docs/github/social-preview.png`](docs/github/social-preview.png) (1280×640).
 
-**Pages:** Settings → Pages → Source: **GitHub Actions**. Private repos on GitHub Free cannot publish Pages until the repo is public or the account has Pro. The README and screenshots still work in the GitHub Android app either way.
+**Pages:** Settings → Pages → Deploy from a branch → `main` / `/docs`. This repo already has the built demo in `docs/`. Private repos on GitHub Free cannot publish Pages until the repo is public or the account has Pro. The README and screenshots still work in the GitHub Android app either way.
 
 </details>
