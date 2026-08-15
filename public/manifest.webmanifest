@@ -1,0 +1,21 @@
+{
+  "name": "ClayCam",
+  "short_name": "ClayCam",
+  "description": "Adaptive CAM on the controller.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#120f0c",
+  "theme_color": "#14110e",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "./apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

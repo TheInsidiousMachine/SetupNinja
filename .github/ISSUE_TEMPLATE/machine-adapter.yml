@@ -1,0 +1,41 @@
+name: Machine adapter
+description: Ask for a controller profile that plugs into a real mill or router.
+title: "Adapter: "
+labels: ["machine"]
+body:
+  - type: input
+    id: machine
+    attributes:
+      label: Machine
+      placeholder: Bridgeport clone, Shapeoko XXL, Haas TM-1…
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Knee mill
+        - CNC router
+        - VMC
+        - Lathe
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: io
+    attributes:
+      label: How the controller would talk to it
+      placeholder: Parallel port, GRBL, LinuxCNC, Fanuc, EtherCAT, analog servos…
+    validations:
+      required: true
+  - type: textarea
+    id: sense
+    attributes:
+      label: Sensors you already have
+      placeholder: Spindle load, accelerometer, current shunts, none yet…
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this machine
+      placeholder: What you want to cut, and what the stock controller gets wrong.
