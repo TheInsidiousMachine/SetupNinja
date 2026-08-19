@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MACHINES, MATERIALS } from "../machine/catalog";
 import type { ComputeTarget, JobPlan, SenseSample } from "../kernel/types";
 import { deg, feed, pct } from "./format";
+import { gcodeFileName, postGcode } from "../kernel/gcode";
 import { MachineView } from "./MachineView";
 import type { WorkerIn, WorkerOut } from "../worker/protocol";
 
@@ -122,6 +123,19 @@ export function App() {
     setStatus("running");
   }
 
+  function exportGcode() {
+    if (!plan) return;
+    const blob = new Blob([postGcode(plan)], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = gcodeFileName(plan);
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function onStl(file: File) {
     setStatus("planning");
     setPartLabel(file.name);
@@ -225,6 +239,9 @@ export function App() {
           disabled={status === "planning" || status === "running" || !samples.length}
         >
           {status === "running" ? "Verifying..." : status === "done" ? "Verify again" : "Verify G-code"}
+        </button>
+        <button className="btn" onClick={exportGcode} disabled={!plan || status === "planning"}>
+          Export proof .nc
         </button>
         <button className="btn" onClick={() => fileRef.current?.click()} disabled={status === "running"}>
           Load model

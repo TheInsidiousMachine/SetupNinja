@@ -30,10 +30,13 @@ This repo currently ships a deterministic TypeScript machining kernel and phone-
 | --- | --- |
 | Height-map CAM, raster roughing, and finishing | Print/photo extraction workflow |
 | STL parser and demo model import | G-code import, edit, and repost |
+| Conservative `.nc` export from deterministic toolpaths | Controller-specific posts |
 | Machine, material, and tool catalogs | Android storage/USB/compact flash handoff |
 | Feed/load/chatter simulation | Explicit safety checklist before post |
 
 `src/kernel` plans the job. `src/adaptive` simulates feedback. The UI now presents that engine as SetupNinja's first verified-G-code demo path.
+
+Generated G-code is a proof output for inspection and simulation. Do not run it on a machine until the controller post, work offset, tool length, safe retract, stock setup, and dry-run checklist have been verified for that machine.
 
 ## Run Locally
 
