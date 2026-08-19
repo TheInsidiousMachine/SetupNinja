@@ -1,0 +1,90 @@
+name: Feedback PR gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feedback-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'feedback/') &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Require configured worker actor and low-risk labels
+        env:
+          EXPECTED_ACTOR: ${{ vars.FEEDBACK_BOT_LOGIN }}
+          PR_ACTOR: ${{ github.event.pull_request.user.login }}
+          LABELS_JSON: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          node - <<'NODE'
+          const labels = new Set(JSON.parse(process.env.LABELS_JSON));
+          if (!process.env.EXPECTED_ACTOR) throw new Error("FEEDBACK_BOT_LOGIN repository variable is not configured");
+          if (process.env.PR_ACTOR !== process.env.EXPECTED_ACTOR) throw new Error("pull request actor is not the configured feedback worker");
+          for (const required of ["clayton-demo-auto", "risk-reviewed-low"]) {
+            if (!labels.has(required)) throw new Error(`missing required label: ${required}`);
+          }
+          for (const blocked of ["machining-review", "security-review", "do-not-merge"]) {
+            if (labels.has(blocked)) throw new Error(`blocked by label: ${blocked}`);
+          }
+          NODE
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - name: Enforce feedback-worker path boundary
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff --name-only --diff-filter=ACMR "$BASE_SHA...HEAD" > "$RUNNER_TEMP/changed-files"
+          node - "$RUNNER_TEMP/changed-files" <<'NODE'
+          const fs = require("node:fs");
+          const files = fs.readFileSync(process.argv[2], "utf8").split("\n").filter(Boolean);
+          const prefixes = ["src/ui/", "tests/e2e/", "public/", "docs/"];
+          const blocked = files.filter((file) => !prefixes.some((prefix) => file.startsWith(prefix)));
+          if (blocked.length) throw new Error(`feedback PR changed blocked paths: ${blocked.join(", ")}`);
+          NODE
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+        with:
+          cache-provider: basic
+      - run: npm ci
+      - run: npm --prefix automation test
+      - run: npm test
+      - run: npm run build
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Bundle web app into Android assets
+        run: rsync -a --delete dist/ android/app/src/main/assets/www/
+      - run: ./android/gradlew -p android lintDebug assembleDebug --no-daemon
+
+  enable-auto-merge:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge the independently gated low-risk change
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: gh pr merge "$PR_URL" --squash --delete-branch --match-head-commit "$HEAD_SHA"
