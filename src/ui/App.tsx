@@ -1,29 +1,73 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MessageSquare, X } from "lucide-react";
 import { MACHINES, MATERIALS } from "../machine/catalog";
-import type { ComputeTarget, JobPlan, SenseSample } from "../kernel/types";
+import { loadTools, resetTools, saveTools } from "../machine/toolLibrary";
+import type { ComputeTarget, JobPlan, ParametricSpec, SenseSample, Tool } from "../kernel/types";
 import { deg, feed, pct } from "./format";
 import { gcodeFileName, postGcode } from "../kernel/gcode";
+import { verifyPlan } from "../kernel/verify";
+import { GuidedSetup } from "./GuidedSetup";
 import { MachineView } from "./MachineView";
-import type { WorkerIn, WorkerOut } from "../worker/protocol";
+import {
+  EMPTY_SAFETY_CHECKS,
+  SafetyReview,
+  type SafetyCheckId,
+  type SafetyChecks,
+} from "./SafetyReview";
+import { ToolLibrary } from "./ToolLibrary";
+import { FeedbackPanel } from "./FeedbackPanel";
+import { UpdatePanel } from "./UpdatePanel";
+import { readAppInfo } from "../update/update";
+import type { FeedbackPayload } from "../feedback/feedback";
+import type { WorkerIn, WorkerOut, WorkerRequest } from "../worker/protocol";
 
 type Status = "planning" | "ready" | "running" | "done" | "error";
+type SetupMode = "demo" | "guided" | "stl";
+
+type NativeSaveResult = {
+  ok: boolean;
+  displayName?: string;
+  fileName?: string;
+  location?: string;
+  error?: string;
+};
+
+declare global {
+  interface Window {
+    AndroidUsb?: {
+      saveProgram(fileName: string, contents: string): string;
+      appInfo?(): string;
+      shareFeedback?(subject: string, body: string): string;
+      installUpdate?(apkUrl: string, sha256: string, versionCode: number, versionName: string, signature: string): string;
+      updateStatus?(): string;
+    };
+  }
+}
 
 export function App() {
   const workerRef = useRef<Worker | null>(null);
   const [machineId, setMachineId] = useState("knee");
   const [materialId, setMaterialId] = useState("6061");
   const [compute, setCompute] = useState<ComputeTarget>("phone");
+  const [mode, setMode] = useState<SetupMode>("demo");
+  const [tools, setTools] = useState<Tool[]>(() => loadTools());
   const [status, setStatus] = useState<Status>("planning");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [plan, setPlan] = useState<JobPlan | null>(null);
   const [samples, setSamples] = useState<SenseSample[]>([]);
   const [playhead, setPlayhead] = useState(0);
   const [partLabel, setPartLabel] = useState("Demo bracket");
+  const [safetyChecks, setSafetyChecks] = useState<SafetyChecks>(EMPTY_SAFETY_CHECKS);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const appInfo = useMemo(readAppInfo, []);
   const fileRef = useRef<HTMLInputElement>(null);
   const runRef = useRef<number | null>(null);
   const stlRef = useRef<{ name: string; buffer: ArrayBuffer } | null>(null);
-
+  const guidedRef = useRef<ParametricSpec | null>(null);
   const skipPicker = useRef(true);
+  const nextRequestId = useRef(0);
+  const activeRequestId = useRef(0);
 
   useEffect(() => {
     const worker = new Worker(new URL("../worker/cam.worker.ts", import.meta.url), {
@@ -32,6 +76,7 @@ export function App() {
     workerRef.current = worker;
     worker.onmessage = (event: MessageEvent<WorkerOut>) => {
       const msg = event.data;
+      if (msg.requestId !== activeRequestId.current) return;
       if (msg.type === "error") {
         setStatus("error");
         setError(msg.message);
@@ -44,12 +89,7 @@ export function App() {
       setStatus("ready");
       setError(null);
     };
-    worker.postMessage({
-      type: "demo",
-      machineId,
-      materialId,
-      compute,
-    } satisfies WorkerIn);
+    sendWorker({ type: "demo", machineId, materialId, compute, tools });
     return () => worker.terminate();
   }, []);
 
@@ -58,28 +98,8 @@ export function App() {
       skipPicker.current = false;
       return;
     }
-    const worker = workerRef.current;
-    if (!worker) return;
-    setStatus("planning");
-    if (stlRef.current) {
-      const msg: WorkerIn = {
-        type: "stl",
-        name: stlRef.current.name,
-        buffer: stlRef.current.buffer,
-        machineId,
-        materialId,
-        compute,
-      };
-      worker.postMessage(msg);
-      return;
-    }
-    const msg: WorkerIn = {
-      type: "demo",
-      machineId,
-      materialId,
-      compute,
-    };
-    worker.postMessage(msg);
+    if (!workerRef.current) return;
+    regenerateCurrent(tools);
   }, [machineId, materialId, compute]);
 
   useEffect(() => {
@@ -88,12 +108,14 @@ export function App() {
       return;
     }
     const start = performance.now();
-    const duration = Math.min(22000, 8000 + samples.length * 0.8);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reduceMotion ? 350 : Math.min(5000, 1800 + samples.length * 0.12);
     const tick = (now: number) => {
       const t = (now - start) / duration;
       if (t >= 1) {
-        setPlayhead(samples.length - 1);
+        setPlayhead(Math.max(0, samples.length - 1));
         setStatus("done");
+        setNotice("Basic consistency checks complete. Confirm the shop review to unlock export.");
         return;
       }
       setPlayhead(Math.floor(t * Math.max(0, samples.length - 1)));
@@ -105,174 +127,425 @@ export function App() {
     };
   }, [status, samples.length]);
 
+  useEffect(() => {
+    if (!feedbackOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFeedbackOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    window.setTimeout(() => {
+      document.querySelector<HTMLElement>(".feedback-dialog select")?.focus();
+    });
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [feedbackOpen]);
+
   const sample = useMemo(() => {
     if (!samples.length) return undefined;
-    const i = Math.min(playhead, samples.length - 1);
-    for (let k = i; k >= 0; k--) {
-      if (samples[k].kind === "cut") return samples[k];
+    const index = Math.min(playhead, samples.length - 1);
+    for (let offset = index; offset >= 0; offset--) {
+      if (samples[offset].kind === "cut") return samples[offset];
     }
-    return samples[i];
+    return samples[index];
   }, [samples, playhead]);
-  const cuts = useMemo(() => samples.filter((s) => s.kind === "cut").length, [samples]);
-  const machine = MACHINES.find((m) => m.id === machineId)!;
-  const material = MATERIALS.find((m) => m.id === materialId)!;
+  const cuts = useMemo(() => samples.filter((item) => item.kind === "cut").length, [samples]);
+  const machine = MACHINES.find((item) => item.id === machineId)!;
+  const material = MATERIALS.find((item) => item.id === materialId)!;
+  const gcode = useMemo(() => (plan ? postGcode(plan) : ""), [plan]);
+  const reviewComplete = Object.values(safetyChecks).every(Boolean);
+  const canExport = status === "done" && reviewComplete && Boolean(plan);
+  const verificationProgress = samples.length
+    ? Math.round((playhead / Math.max(1, samples.length - 1)) * 100)
+    : 0;
+
+  function invalidateVerification() {
+    setSafetyChecks(EMPTY_SAFETY_CHECKS);
+    setNotice(null);
+    setPlayhead(0);
+  }
+
+  function sendWorker(message: WorkerRequest) {
+    const requestId = ++nextRequestId.current;
+    activeRequestId.current = requestId;
+    workerRef.current?.postMessage({ ...message, requestId } satisfies WorkerIn);
+  }
+
+  function postWorker(message: WorkerRequest) {
+    invalidateVerification();
+    setStatus("planning");
+    setError(null);
+    sendWorker(message);
+  }
+
+  function regenerateCurrent(nextTools: Tool[]) {
+    if (stlRef.current) {
+      postWorker({
+        type: "stl",
+        name: stlRef.current.name,
+        buffer: stlRef.current.buffer,
+        machineId,
+        materialId,
+        compute,
+        tools: nextTools,
+      });
+      return;
+    }
+    if (guidedRef.current) {
+      postWorker({
+        type: "parametric",
+        spec: guidedRef.current,
+        machineId,
+        materialId,
+        compute,
+        tools: nextTools,
+      });
+      return;
+    }
+    if (mode === "guided") {
+      setPlan(null);
+      setSamples([]);
+      setPartLabel("New guided job");
+      invalidateVerification();
+      setStatus("ready");
+      return;
+    }
+    postWorker({ type: "demo", machineId, materialId, compute, tools: nextTools });
+  }
+
+  function onToolsChange(nextTools: Tool[]) {
+    setTools(nextTools);
+    saveTools(nextTools);
+    regenerateCurrent(nextTools);
+  }
+
+  function onToolsReset() {
+    if (!window.confirm("Reset the saved tool library to its defaults?")) return;
+    const defaults = resetTools();
+    setTools(defaults);
+    regenerateCurrent(defaults);
+  }
+
+  function showDemo() {
+    stlRef.current = null;
+    guidedRef.current = null;
+    setMode("demo");
+    postWorker({ type: "demo", machineId, materialId, compute, tools });
+  }
+
+  function showGuided() {
+    activeRequestId.current = ++nextRequestId.current;
+    stlRef.current = null;
+    guidedRef.current = null;
+    setPlan(null);
+    setSamples([]);
+    setPartLabel("New guided job");
+    setMode("guided");
+    invalidateVerification();
+    setStatus("ready");
+  }
+
+  function onGuided(spec: ParametricSpec) {
+    stlRef.current = null;
+    guidedRef.current = spec;
+    setMode("guided");
+    postWorker({ type: "parametric", spec, machineId, materialId, compute, tools });
+  }
+
+  function onGuidedDirty() {
+    if (!guidedRef.current) return;
+    activeRequestId.current = ++nextRequestId.current;
+    guidedRef.current = null;
+    setPlan(null);
+    setSamples([]);
+    setPartLabel("Edited guided job");
+    invalidateVerification();
+    setStatus("ready");
+  }
 
   function run() {
-    if (!samples.length) return;
+    if (!samples.length || !plan || status === "planning") return;
+    const report = verifyPlan(plan);
+    if (!report.passed) {
+      setSafetyChecks(EMPTY_SAFETY_CHECKS);
+      setStatus("error");
+      setError(report.issues[0]?.message || "The deterministic checks did not pass.");
+      setNotice(null);
+      return;
+    }
+    setSafetyChecks(EMPTY_SAFETY_CHECKS);
+    setNotice(`Checking ${report.cutMoves} cutting moves and ${report.rapidMoves} retract moves.`);
     setPlayhead(0);
     setStatus("running");
   }
 
   function exportGcode() {
-    if (!plan) return;
-    const blob = new Blob([postGcode(plan)], { type: "text/plain;charset=utf-8" });
+    if (!plan || !canExport) return;
+    const fileName = gcodeFileName(plan);
+    if (window.AndroidUsb?.saveProgram) {
+      try {
+        const result = JSON.parse(window.AndroidUsb.saveProgram(fileName, gcode)) as NativeSaveResult;
+        if (!result.ok) throw new Error(result.error || "Android could not save the program.");
+        setNotice(`Saved ${result.displayName || result.fileName || fileName} to ${result.location || "Downloads"}.`);
+        return;
+      } catch (saveError) {
+        setNotice(saveError instanceof Error ? saveError.message : "Android could not save the program.");
+        return;
+      }
+    }
+
+    const blob = new Blob([gcode], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = gcodeFileName(plan);
+    link.download = fileName;
     document.body.append(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+    setNotice(`Downloaded ${fileName}.`);
   }
 
   function onStl(file: File) {
-    setStatus("planning");
     setPartLabel(file.name);
     file.arrayBuffer().then((buffer) => {
       stlRef.current = { name: file.name, buffer };
-      workerRef.current?.postMessage({
+      guidedRef.current = null;
+      setMode("stl");
+      postWorker({
         type: "stl",
         name: file.name,
         buffer,
         machineId,
         materialId,
         compute,
-      } satisfies WorkerIn);
+        tools,
+      });
     });
   }
 
+  function onSafetyChange(id: SafetyCheckId, value: boolean) {
+    setSafetyChecks((current) => ({ ...current, [id]: value }));
+  }
+
+  async function shareFeedback(payload: FeedbackPayload) {
+    const body = [
+      `${payload.category.toUpperCase()} · ${payload.severity.toUpperCase()}`,
+      payload.summary,
+      payload.details,
+      payload.diagnostics ? `Diagnostics: ${JSON.stringify(payload.diagnostics)}` : "",
+      `Report ${payload.id} · SetupNinja ${payload.appVersion}`,
+    ].filter(Boolean).join("\n\n");
+    if (window.AndroidUsb?.shareFeedback) {
+      const result = JSON.parse(window.AndroidUsb.shareFeedback(`SetupNinja: ${payload.summary}`, body)) as {
+        ok?: boolean;
+        message?: string;
+      };
+      if (!result.ok) throw new Error(result.message || "Android could not share the feedback.");
+      return;
+    }
+    if (navigator.share) {
+      await navigator.share({ title: `SetupNinja: ${payload.summary}`, text: body });
+      return;
+    }
+    throw new Error("Sharing is unavailable on this device. The report remains queued.");
+  }
+
+  const statusMessage =
+    notice ||
+    (status === "planning"
+      ? "Building deterministic toolpaths from the current setup."
+      : status === "running"
+        ? `Running consistency checks: ${verificationProgress}% complete.`
+        : status === "error"
+          ? `${error || "The job could not be planned."} Check the setup values and try again.`
+          : status === "done"
+            ? "Basic consistency checks complete. Confirm the shop review to unlock export."
+            : plan
+              ? "Job ready. Run basic checks when the setup matches the machine."
+              : "Enter the guided setup values, then generate the job.");
+
   return (
-    <div className="app">
+    <main className="app" id="main-content">
       <header className="top">
         <div>
-          <p className="eyebrow">Print to verified G-code</p>
-          <h1>SetupNinja</h1>
+          <p className="eyebrow">Print to proof program</p>
+          <h1 translate="no">SetupNinja</h1>
         </div>
         <p className="machine-name">{machine.name}</p>
       </header>
 
-      <MachineView plan={plan} samples={samples} playhead={playhead} />
+      <ol className="flow-progress" aria-label="Job progress">
+        <li className={plan ? "complete" : "active"}>Setup</li>
+        <li className={status === "running" ? "active" : status === "done" ? "complete" : ""}>Checks</li>
+        <li className={canExport ? "active" : ""}>Export</li>
+      </ol>
 
-      <section className="gauges" aria-label="Verified cut math">
-        <Gauge label="Load" value={sample ? sample.load : 0} tone={tone(sample?.load ?? 0, 0.7, 1)} />
-        <Gauge
-          label="Vibe"
-          value={sample ? sample.vibration : 0}
-          tone={tone(sample?.chatterRisk ?? 0, 0.45, 0.7)}
-        />
-        <div className="gauge gauge-num">
-          <span className="gauge-label">Post</span>
-          <strong>{sample ? feed(sample.feedMmMin) : "—"}</strong>
-          <span className="gauge-sub">
-            {sample ? `${pct(sample.feedOverride)} verified` : "waiting"}
+      <section className="setup-section" aria-labelledby="setup-title">
+        <div className="section-heading">
+          <div>
+            <p className="step-label">1 · Setup</p>
+            <h2 id="setup-title">Describe the job</h2>
+          </div>
+          <span className="state-pill ready">On this phone</span>
+        </div>
+
+        <div className="mode-tabs" aria-label="Job source">
+          <button type="button" aria-pressed={mode === "demo"} className={mode === "demo" ? "on" : ""} onClick={showDemo}>
+            Quick demo
+          </button>
+          <button type="button" aria-pressed={mode === "guided"} className={mode === "guided" ? "on" : ""} onClick={showGuided}>
+            Guided setup
+          </button>
+          <button type="button" aria-pressed={mode === "stl"} className={mode === "stl" ? "on" : ""} onClick={() => fileRef.current?.click()}>
+            Import STL
+          </button>
+        </div>
+
+        <div className="primary-pickers">
+          <Picker
+            legend="Machine"
+            value={machineId}
+            options={MACHINES.map((item) => ({ id: item.id, label: item.name }))}
+            onChange={setMachineId}
+          />
+          <Picker
+            legend="Material"
+            value={materialId}
+            options={MATERIALS.map((item) => ({ id: item.id, label: item.name }))}
+            onChange={setMaterialId}
+          />
+        </div>
+
+        {mode === "guided" ? (
+          <GuidedSetup
+            onGenerate={onGuided}
+            onDirty={onGuidedDirty}
+            disabled={status === "planning" || status === "running"}
+          />
+        ) : mode === "demo" ? (
+          <p className="mode-note">Use the sample bracket to check the complete workflow before entering a shop job.</p>
+        ) : (
+          <p className="mode-note">Loaded model: {partLabel}</p>
+        )}
+
+        <details className="advanced-setup">
+          <summary>Advanced setup &amp; tool library</summary>
+          <Picker
+            legend="Compute"
+            value={compute}
+            options={[
+              { id: "phone", label: "Phone" },
+              { id: "local", label: "Local" },
+              { id: "cloud", label: "Cloud" },
+            ]}
+            onChange={(id) => setCompute(id as ComputeTarget)}
+          />
+          <ToolLibrary tools={tools} onChange={onToolsChange} onReset={onToolsReset} />
+        </details>
+      </section>
+
+      <section className="review-section" aria-labelledby="review-title">
+        <div className="section-heading">
+          <div>
+            <p className="step-label">2 · Review &amp; basic checks</p>
+            <h2 id="review-title">{partLabel}</h2>
+          </div>
+          <span className={`state-pill ${status === "done" ? "ready" : "pending"}`}>
+            {status === "done" ? "Basic checks" : status === "running" ? `${verificationProgress}%` : "Not checked"}
           </span>
         </div>
-      </section>
 
-      <section className="meta" aria-label="Job">
-        <Chip>{partLabel}</Chip>
-        <Chip>{material.name}</Chip>
-        <Chip>{plan?.tools[0]?.name ?? "tool"}</Chip>
-        <Chip>
-          {sample
-            ? `flute ${sample.flute + 1} of ${plan?.paths[0]?.tool.flutes ?? 4}`
-            : "idle"}
-        </Chip>
-        <Chip>{sample ? `${deg(sample.engagementRad)} engage` : `${cuts} cuts`}</Chip>
-      </section>
+        <MachineView plan={plan} samples={samples} playhead={playhead} />
 
-      <section className="pickers">
-        <Picker
-          legend="Machine"
-          value={machineId}
-          options={MACHINES.map((m) => ({ id: m.id, label: m.name }))}
-          onChange={setMachineId}
-        />
-        <Picker
-          legend="Material"
-          value={materialId}
-          options={MATERIALS.map((m) => ({ id: m.id, label: m.name }))}
-          onChange={setMaterialId}
-        />
-        <Picker
-          legend="Compute"
-          value={compute}
-          options={[
-            { id: "phone", label: "Phone" },
-            { id: "local", label: "Local" },
-            { id: "cloud", label: "Cloud" },
-          ]}
-          onChange={(id) => setCompute(id as ComputeTarget)}
-        />
-      </section>
+        <section className="gauges" aria-label="Cut simulation">
+          <Gauge label="Load" value={sample ? sample.load : 0} tone={tone(sample?.load ?? 0, 0.7, 1)} />
+          <Gauge label="Vibe" value={sample ? sample.vibration : 0} tone={tone(sample?.chatterRisk ?? 0, 0.45, 0.7)} />
+          <div className="gauge gauge-num">
+            <span className="gauge-label">Feed</span>
+            <strong>{sample ? feed(sample.feedMmMin) : "--"}</strong>
+            <span className="gauge-sub">{sample ? `${pct(sample.feedOverride)} simulated` : "waiting"}</span>
+          </div>
+        </section>
 
-      {compute === "cloud" ? (
-        <p className="note">
-          Cloud or a Linux tunnel can help with print reading later. This demo still verifies
-          the deterministic kernel on-device.
+        <div className="meta" aria-label="Current job facts">
+          <Chip>{material.name}</Chip>
+          <Chip>{plan?.tools[0]?.name ?? "tool"}</Chip>
+          <Chip>{sample ? `flute ${sample.flute + 1} of ${plan?.paths[0]?.tool.flutes ?? 4}` : `${cuts} cuts`}</Chip>
+          <Chip>{sample ? `${deg(sample.engagementRad)} engage` : `${plan?.paths.length ?? 0} paths`}</Chip>
+        </div>
+
+        <p className={`status-message ${status === "error" ? "error" : ""}`} role="status" aria-live="polite">
+          {statusMessage}
         </p>
-      ) : (
-        <p className="note">
-          {status === "planning"
-            ? "Solving deterministic toolpaths from setup data..."
-            : status === "error"
-              ? error
-              : "AI can read the job. Deterministic math owns the toolpath."}
-        </p>
-      )}
+      </section>
 
-      <div className="actions">
-        <button
-          className="btn primary"
-          onClick={run}
-          disabled={status === "planning" || status === "running" || !samples.length}
-        >
-          {status === "running" ? "Verifying..." : status === "done" ? "Verify again" : "Verify G-code"}
+      <SafetyReview checked={safetyChecks} onChange={onSafetyChange} disabled={status !== "done"} gcode={gcode} />
+
+      <UpdatePanel />
+
+      {feedbackOpen ? (
+        <div className="feedback-dialog-backdrop" role="presentation" onMouseDown={() => setFeedbackOpen(false)}>
+          <section
+            className="feedback-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Send feedback"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button type="button" className="icon-button feedback-close" aria-label="Close feedback" title="Close" onClick={() => setFeedbackOpen(false)}>
+              <X aria-hidden="true" />
+            </button>
+            <FeedbackPanel
+              appVersion={appInfo.versionName}
+              endpoint={appInfo.feedbackEndpoint || undefined}
+              diagnosticContext={() => ({
+                screen: "job-review",
+                status,
+                mode,
+                machine: machine.id,
+                material: material.id,
+                part: partLabel,
+                paths: plan?.paths.length ?? 0,
+                samples: samples.length,
+                viewport: `${window.innerWidth}x${window.innerHeight}`,
+              })}
+              onShareFallback={shareFeedback}
+            />
+          </section>
+        </div>
+      ) : null}
+
+      <div className="actions" aria-label="Job actions">
+        <button className="btn primary" onClick={run} disabled={status === "planning" || status === "running" || !samples.length}>
+          {status === "running" ? `Checking ${verificationProgress}%` : status === "done" ? "Check again" : "Run checks"}
         </button>
-        <button className="btn" onClick={exportGcode} disabled={!plan || status === "planning"}>
+        <button className="btn export" onClick={exportGcode} disabled={!canExport}>
           Export proof .nc
         </button>
-        <button className="btn" onClick={() => fileRef.current?.click()} disabled={status === "running"}>
-          Load model
+        <button type="button" className="btn icon-action" aria-label="Send feedback" title="Send feedback" onClick={() => setFeedbackOpen(true)}>
+          <MessageSquare aria-hidden="true" />
         </button>
-        <input
-          ref={fileRef}
-          className="sr"
-          type="file"
-          accept=".stl,model/stl"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onStl(f);
-            e.target.value = "";
-          }}
-        />
       </div>
-    </div>
+
+      <input
+        ref={fileRef}
+        className="sr"
+        type="file"
+        name="stl-file"
+        aria-label="STL model file"
+        accept=".stl,model/stl"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onStl(file);
+          event.target.value = "";
+        }}
+      />
+    </main>
   );
 }
 
-function Gauge({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "ok" | "warn" | "bad";
-}) {
+function Gauge({ label, value, tone: gaugeTone }: { label: string; value: number; tone: "ok" | "warn" | "bad" }) {
   return (
-    <div className={`gauge ${tone}`}>
+    <div className={`gauge ${gaugeTone}`}>
       <span className="gauge-label">{label}</span>
       <div className="bar" aria-hidden="true">
         <span style={{ width: `${Math.min(100, value * 100)}%` }} />
@@ -301,14 +574,15 @@ function Picker({
     <fieldset className="picker">
       <legend>{legend}</legend>
       <div className="seg">
-        {options.map((o) => (
+        {options.map((option) => (
           <button
-            key={o.id}
+            key={option.id}
             type="button"
-            className={o.id === value ? "on" : ""}
-            onClick={() => onChange(o.id)}
+            aria-pressed={option.id === value}
+            className={option.id === value ? "on" : ""}
+            onClick={() => onChange(option.id)}
           >
-            {o.label}
+            {option.label}
           </button>
         ))}
       </div>
@@ -316,8 +590,8 @@ function Picker({
   );
 }
 
-function tone(v: number, warn: number, bad: number): "ok" | "warn" | "bad" {
-  if (v >= bad) return "bad";
-  if (v >= warn) return "warn";
+function tone(value: number, warn: number, bad: number): "ok" | "warn" | "bad" {
+  if (value >= bad) return "bad";
+  if (value >= warn) return "warn";
   return "ok";
 }

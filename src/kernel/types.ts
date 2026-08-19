@@ -94,6 +94,49 @@ export type JobPlan = {
 
 export type ComputeTarget = "phone" | "local" | "cloud";
 
+/** Deterministic parametric part primitives for guided (photo-free) setup entry. */
+export type StockSpec = {
+  widthMm: number;
+  depthMm: number;
+  heightMm: number;
+};
+
+export type FaceFeature = {
+  kind: "face";
+};
+
+export type PocketFeature = {
+  kind: "pocket";
+  /** Pocket origin (lower-left corner) in mm, relative to stock origin. */
+  x: number;
+  y: number;
+  widthMm: number;
+  depthMm: number;
+  /** Depth of the pocket floor below the stock top face, mm. */
+  depthBelowTopMm: number;
+};
+
+export type BossFeature = {
+  kind: "boss";
+  /** Boss origin (lower-left corner) in mm, relative to stock origin. */
+  x: number;
+  y: number;
+  widthMm: number;
+  depthMm: number;
+  /** Height of the boss above the stock top face, mm. */
+  heightAboveTopMm: number;
+};
+
+export type ParametricFeature = FaceFeature | PocketFeature | BossFeature;
+
+export type ParametricSpec = {
+  partName: string;
+  stock: StockSpec;
+  feature: ParametricFeature;
+  /** Heightmap raster cell size, mm. Defaults applied by the generator if omitted. */
+  cellMm?: number;
+};
+
 export type SenseSample = {
   i: number;
   tSec: number;

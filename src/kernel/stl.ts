@@ -1,5 +1,8 @@
 import type { Mesh, Triangle, Vec3 } from "./types";
 
+const MAX_STL_BYTES = 100 * 1024 * 1024;
+const MAX_STL_TRIANGLES = 2_000_000;
+
 function readF32(view: DataView, offset: number, le: boolean): number {
   return view.getFloat32(offset, le);
 }
@@ -9,8 +12,12 @@ function readF32(view: DataView, offset: number, le: boolean): number {
  */
 export function parseStl(buffer: ArrayBuffer): Mesh {
   const bytes = new Uint8Array(buffer);
-  if (isAsciiStl(bytes)) return parseAscii(bytes);
-  return parseBinary(bytes);
+  if (bytes.byteLength > MAX_STL_BYTES) {
+    throw new Error("STL file is too large. Limit files to 100 MB.");
+  }
+  const mesh = isAsciiStl(bytes) ? parseAscii(bytes) : parseBinary(bytes);
+  validateMesh(mesh);
+  return mesh;
 }
 
 export function encodeBinaryStl(mesh: Mesh): ArrayBuffer {
@@ -66,8 +73,16 @@ function isAsciiStl(bytes: Uint8Array): boolean {
 }
 
 function parseBinary(bytes: Uint8Array): Mesh {
+  if (bytes.byteLength < 84) throw new Error("Binary STL header is truncated.");
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const count = view.getUint32(80, true);
+  if (count > MAX_STL_TRIANGLES) {
+    throw new Error("STL contains too many triangles.");
+  }
+  const expectedLength = 84 + count * 50;
+  if (bytes.byteLength < expectedLength) {
+    throw new Error("Binary STL triangle table is truncated.");
+  }
   const triangles: Triangle[] = [];
   let o = 84;
   for (let i = 0; i < count; i++) {
@@ -106,4 +121,20 @@ function parseAscii(bytes: Uint8Array): Mesh {
     }
   }
   return { triangles, units: "mm" };
+}
+
+function validateMesh(mesh: Mesh): void {
+  if (mesh.triangles.length === 0) {
+    throw new Error("STL contains no triangles.");
+  }
+  if (mesh.triangles.length > MAX_STL_TRIANGLES) {
+    throw new Error("STL contains too many triangles.");
+  }
+  for (const triangle of mesh.triangles) {
+    for (const vertex of [triangle.a, triangle.b, triangle.c]) {
+      if (![vertex.x, vertex.y, vertex.z].every(Number.isFinite)) {
+        throw new Error("STL vertex coordinates must be finite numbers.");
+      }
+    }
+  }
 }

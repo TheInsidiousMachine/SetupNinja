@@ -1,16 +1,17 @@
 import { engagementFromStepover, speedsAndFeeds } from "../machine/catalog";
-import { heightmapMinMax, sampleHeight } from "./heightmap";
+import { heightmapMinMax, hmZ, sampleHeight, worldToCell } from "./heightmap";
 import type { Heightmap, MachineProfile, Material, Tool, Toolpath, Waypoint } from "./types";
 
 export type PathOptions = {
   leaveMm: number;
   stockTop: number;
   stockPadMm: number;
+  cutBounds?: { x0: number; y0: number; x1: number; y1: number };
 };
 
 /**
  * 2.5D raster roughing plus a finishing pass. Cuts only where the
- * part surface sits below the current Z (stock still to remove).
+ * part surface sits at or below the current Z (stock still to remove).
  */
 export function generateToolpaths(
   hm: Heightmap,
@@ -56,24 +57,28 @@ function rasterPass(
 
   const levels: number[] = [];
   if (opts.onlyFinalZ) {
-    levels.push(floor);
+    const targetLevels = new Set<number>();
+    for (const value of hm.z) {
+      if (Number.isFinite(value)) targetLevels.add(Number(value.toFixed(5)));
+    }
+    levels.push(...[...targetLevels].sort((a, b) => b - a));
   } else {
     for (let z = top - stepdown; z > floor + 1e-3; z -= stepdown) levels.push(z);
     levels.push(floor);
   }
 
   const points: Waypoint[] = [];
-  const y0 = hm.originY + r;
-  const y1 = hm.originY + hm.ny * hm.cell - r;
-  const x0 = hm.originX + r;
-  const x1 = hm.originX + hm.nx * hm.cell - r;
+  const y0 = Math.max(hm.originY, opts.cutBounds?.y0 ?? -Infinity) + r;
+  const y1 = Math.min(hm.originY + hm.ny * hm.cell, opts.cutBounds?.y1 ?? Infinity) - r;
+  const x0 = Math.max(hm.originX, opts.cutBounds?.x0 ?? -Infinity) + r;
+  const x1 = Math.min(hm.originX + hm.nx * hm.cell, opts.cutBounds?.x1 ?? Infinity) - r;
 
   let rapidZ = top + 2;
 
   for (const z of levels) {
     let reverse = false;
     for (let y = y0; y <= y1 + 1e-6; y += stepover) {
-      const row = cutSpans(hm, y, x0, x1, z, opts.leaveMm, hm.cell);
+      const row = cutSpans(hm, y, x0, x1, z, opts.leaveMm, hm.cell, r);
       const spans = reverse ? row.map((s) => ({ a: s.b, b: s.a })).reverse() : row;
       reverse = !reverse;
       for (const span of spans) {
@@ -121,12 +126,16 @@ function cutSpans(
   z: number,
   leave: number,
   cell: number,
+  cutterRadius: number,
 ): { a: number; b: number }[] {
   const spans: { a: number; b: number }[] = [];
   let start: number | null = null;
   for (let x = x0; x <= x1 + 1e-6; x += cell) {
     const partZ = sampleHeight(hm, x, y);
-    const cut = Number.isFinite(partZ) && partZ + leave < z - 0.02;
+    const cut =
+      Number.isFinite(partZ) &&
+      partZ + leave <= z + 0.02 &&
+      cutterClearsTarget(hm, x, y, z, leave, cutterRadius);
     if (cut && start === null) start = x;
     if (!cut && start !== null) {
       if (x - start > cell) spans.push({ a: start, b: x - cell });
@@ -135,4 +144,28 @@ function cutSpans(
   }
   if (start !== null && x1 - start > cell) spans.push({ a: start, b: x1 });
   return spans;
+}
+
+export function cutterClearsTarget(
+  hm: Heightmap,
+  x: number,
+  y: number,
+  z: number,
+  leave: number,
+  radius: number,
+): boolean {
+  const min = worldToCell(hm, x - radius, y - radius);
+  const max = worldToCell(hm, x + radius, y + radius);
+  for (let iy = min.iy; iy <= max.iy; iy++) {
+    for (let ix = min.ix; ix <= max.ix; ix++) {
+      const cellX0 = hm.originX + ix * hm.cell;
+      const cellY0 = hm.originY + iy * hm.cell;
+      const dx = Math.max(cellX0 - x, 0, x - (cellX0 + hm.cell));
+      const dy = Math.max(cellY0 - y, 0, y - (cellY0 + hm.cell));
+      if (Math.hypot(dx, dy) > radius + 1e-9) continue;
+      const surface = hmZ(hm, ix, iy);
+      if (Number.isFinite(surface) && surface + leave > z + 0.02) return false;
+    }
+  }
+  return true;
 }

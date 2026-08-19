@@ -1,6 +1,6 @@
 # SetupNinja
 
-Phone-first setup software for turning a print, stock measurements, and available tools into deterministic, controller-ready G-code.
+Phone-first setup software for turning a print, stock measurements, and available tools into deterministic proof G-code for review.
 
 SetupNinja is built around a simple shop promise: take a picture of the print, enter the minimum missing setup details, verify the math, and get a program onto the machine from the phone.
 
@@ -28,11 +28,12 @@ This repo currently ships a deterministic TypeScript machining kernel and phone-
 
 | Built | Next |
 | --- | --- |
-| Height-map CAM, raster roughing, and finishing | Print/photo extraction workflow |
-| STL parser and demo model import | G-code import, edit, and repost |
-| Conservative `.nc` export from deterministic toolpaths | Controller-specific posts |
-| Machine, material, and tool catalogs | Android storage/USB/compact flash handoff |
-| Feed/load/chatter simulation | Explicit safety checklist before post |
+| Height-map CAM, facing, pocket, boss, roughing, and finishing | Print/photo extraction workflow |
+| STL parser, guided setup, and demo model import | G-code import, edit, and repost |
+| Native Android `.nc` export and offline APK | Controller-specific posts and removable-media transfer |
+| Machine, material, and editable tool catalogs | Fixture, holder, offset, and machine-envelope models |
+| Interactive Three.js toolpath review | External RS-274 validation and supervised cut trials |
+| Offline feedback queue and gated agent workflow | Authenticated public tester distribution |
 
 `src/kernel` plans the job. `src/adaptive` simulates feedback. The UI now presents that engine as SetupNinja's first verified-G-code demo path.
 
@@ -47,6 +48,8 @@ npm run dev
 ```
 
 Vite prints a LAN URL. Open that on a phone on the same Wi-Fi.
+
+See [Clayton demo handoff](docs/clayton-handoff.md), [testing](docs/testing.md), and [feedback automation](docs/feedback-automation.md) for the APK workflow and current production boundary.
 
 ## License
 

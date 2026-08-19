@@ -1,11 +1,12 @@
-import type { ComputeTarget, JobPlan, SenseSample } from "../kernel/types";
+import type { ComputeTarget, JobPlan, ParametricSpec, SenseSample, Tool } from "../kernel/types";
 
-export type WorkerIn =
+export type WorkerRequest =
   | {
       type: "demo";
       machineId: string;
       materialId: string;
       compute: ComputeTarget;
+      tools: Tool[];
     }
   | {
       type: "stl";
@@ -14,8 +15,19 @@ export type WorkerIn =
       machineId: string;
       materialId: string;
       compute: ComputeTarget;
+      tools: Tool[];
+    }
+  | {
+      type: "parametric";
+      spec: ParametricSpec;
+      tools: Tool[];
+      machineId: string;
+      materialId: string;
+      compute: ComputeTarget;
     };
 
+export type WorkerIn = WorkerRequest & { requestId: number };
+
 export type WorkerOut =
-  | { type: "ready"; plan: JobPlan; samples: SenseSample[] }
-  | { type: "error"; message: string };
+  | { type: "ready"; requestId: number; plan: JobPlan; samples: SenseSample[] }
+  | { type: "error"; requestId: number; message: string };

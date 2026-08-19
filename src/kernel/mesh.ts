@@ -1,11 +1,17 @@
 import { barycentric, createHeightmap, hmIndex } from "./heightmap";
 import type { Heightmap, Mesh, Triangle } from "./types";
 
+const MAX_RASTER_CELLS = 4_000_000;
+
 /**
  * Rasterize a triangle mesh onto a Z-max heightmap.
  * Cell centers inside a triangle take the interpolated Z; later triangles win on max.
  */
 export function rasterizeMesh(mesh: Mesh, cell: number, padMm = 2): Heightmap {
+  if (!Number.isFinite(cell) || cell <= 0) {
+    throw new Error("STL raster resolution must be a positive finite number.");
+  }
+  if (mesh.triangles.length === 0) throw new Error("STL contains no triangles.");
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -18,6 +24,19 @@ export function rasterizeMesh(mesh: Mesh, cell: number, padMm = 2): Heightmap {
       if (p.y > maxY) maxY = p.y;
     }
   }
+  const width = maxX - minX;
+  const depth = maxY - minY;
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) {
+    throw new Error("STL footprint contains non-finite coordinates.");
+  }
+  if (width <= 0 || depth <= 0) {
+    throw new Error("STL has no two-dimensional cutting footprint.");
+  }
+  const nx = Math.max(2, Math.ceil((width + padMm * 2) / cell));
+  const ny = Math.max(2, Math.ceil((depth + padMm * 2) / cell));
+  if (nx * ny > MAX_RASTER_CELLS) {
+    throw new Error("STL footprint is too large for this device and raster resolution.");
+  }
   const hm = createHeightmap(
     minX - padMm,
     minY - padMm,
@@ -28,6 +47,9 @@ export function rasterizeMesh(mesh: Mesh, cell: number, padMm = 2): Heightmap {
 
   for (const tri of mesh.triangles) {
     stampTriangle(hm, tri);
+  }
+  if (!hm.z.some(Number.isFinite)) {
+    throw new Error("STL has no surface at the current raster resolution.");
   }
   return hm;
 }

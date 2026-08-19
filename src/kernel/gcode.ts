@@ -1,8 +1,7 @@
 import type { JobPlan, Toolpath, Waypoint } from "./types";
 
-const SAFE_RETRACT_MM = 15;
-
 export function postGcode(plan: JobPlan): string {
+  const safeRetractMm = plan.stock.z + plan.stock.h + 5;
   const lines: string[] = [
     "%",
     "(SETUPNINJA PROOF PROGRAM - VERIFY BEFORE MACHINE USE)",
@@ -10,18 +9,36 @@ export function postGcode(plan: JobPlan): string {
     `(MACHINE: ${cleanComment(plan.machine.name)})`,
     `(MATERIAL: ${cleanComment(plan.material.name)})`,
     `(STOCK: X${fmt(plan.stock.w)} Y${fmt(plan.stock.d)} Z${fmt(plan.stock.h)} MM)`,
-    "(ASSUMES G54 WORK ZERO, TOOL LENGTHS, AND CLEARANCE ARE SET BY OPERATOR)",
+    "(GENERIC FANUC-STYLE PROOF POST; CONTROLLER COMPATIBILITY IS NOT VERIFIED)",
+    "(DATUM: G54 X0 Y0 = MODELED PART LOWER-LEFT; Z0 = STOCK BOTTOM)",
+    "(TOOL LENGTHS, WORKHOLDING, AND CLEARANCE MUST BE SET BY OPERATOR)",
     "(AI MAY INTERPRET THE JOB; THIS FILE IS POSTED FROM DETERMINISTIC TOOLPATH MATH)",
-    "G21 G90 G17 G40 G49 G80",
+    "G21 G90 G17 G40 G80 G94",
     "G54",
-    `G0 Z${fmt(SAFE_RETRACT_MM)}`,
+    `G0 Z${fmt(safeRetractMm)}`,
   ];
 
-  plan.paths.forEach((path, i) => {
-    appendPath(lines, path, i + 1);
-  });
+  let currentToolId: string | null = null;
+  for (const [pathIndex, path] of plan.paths.entries()) {
+    if (path.points.length === 0) continue;
+    const configuredIndex = plan.tools.findIndex((tool) => tool.id === path.tool.id);
+    const toolNumber = configuredIndex >= 0 ? configuredIndex + 1 : pathIndex + 1;
+    const first = path.points[0];
+    lines.push("", `(TOOL ${toolNumber}: ${cleanComment(path.tool.name)} ${fmt(path.tool.diameterMm)}MM)`);
+    if (currentToolId !== path.tool.id) {
+      lines.push(
+        "M5",
+        `G0 Z${fmt(safeRetractMm)}`,
+        `T${toolNumber} M6`,
+        `G43 H${toolNumber} Z${fmt(safeRetractMm)}`,
+      );
+      currentToolId = path.tool.id;
+    }
+    lines.push(`S${Math.round(first.rpm)} M3`);
+    appendPath(lines, path, safeRetractMm);
+  }
 
-  lines.push(`G0 Z${fmt(SAFE_RETRACT_MM)}`, "M5", "M30", "%");
+  lines.push(`G0 Z${fmt(safeRetractMm)}`, "M5", "M30", "%");
   return `${lines.join("\n")}\n`;
 }
 
@@ -34,32 +51,28 @@ export function gcodeFileName(plan: JobPlan): string {
   return `${slug || "setupninja-program"}.nc`;
 }
 
-function appendPath(lines: string[], path: Toolpath, toolNumber: number): void {
-  if (path.points.length === 0) return;
-
-  const first = path.points[0];
-  lines.push(
-    "",
-    `(TOOL ${toolNumber}: ${cleanComment(path.tool.name)} ${fmt(path.tool.diameterMm)}MM)`,
-    `T${toolNumber} M6`,
-    `S${Math.round(first.rpm)} M3`,
-    `G0 Z${fmt(SAFE_RETRACT_MM)}`,
-  );
-
+function appendPath(lines: string[], path: Toolpath, safeRetractMm: number): void {
   let last: string | null = null;
   for (const point of path.points) {
-    const line = moveLine(point);
-    if (line === last) continue;
-    lines.push(line);
-    last = line;
+    const moveLines = point.kind === "rapid" ? rapidMoveLines(point, safeRetractMm) : [feedMoveLine(point)];
+    for (const line of moveLines) {
+      if (line === last) continue;
+      lines.push(line);
+      last = line;
+    }
   }
 }
 
-function moveLine(point: Waypoint): string {
-  const code = point.kind === "rapid" ? "G0" : "G1";
+function rapidMoveLines(point: Waypoint, safeRetractMm: number): string[] {
+  const lines = [`G0 Z${fmt(safeRetractMm)}`, `G0 X${fmt(point.x)} Y${fmt(point.y)}`];
+  if (Math.abs(point.z - safeRetractMm) > 1e-6) lines.push(`G0 Z${fmt(point.z)}`);
+  return lines;
+}
+
+function feedMoveLine(point: Waypoint): string {
   const coords = `X${fmt(point.x)} Y${fmt(point.y)} Z${fmt(point.z)}`;
-  if (code === "G0") return `${code} ${coords}`;
-  return `${code} ${coords} F${Math.round(point.feedMmMin)}`;
+  const feed = point.kind === "lead" ? Math.max(25, point.feedMmMin * 0.25) : point.feedMmMin;
+  return `G1 ${coords} F${Math.round(feed)}`;
 }
 
 function fmt(n: number): string {
