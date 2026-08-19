@@ -116,6 +116,7 @@ export async function processNext({ store, config, issueClient, worktrees, publi
     await store.appendLog(record.id, "info", "Dispatcher completed");
 
     const changedFiles = await worktrees.changedFiles(worktree.path);
+    if (!changedFiles.length) throw new Error("dispatcher produced no changes in its isolated worktree");
     assertAllowedChanges(changedFiles, config.allowedPaths);
     await store.appendLog(record.id, "info", "Changed-path gate passed", { changedFiles });
 

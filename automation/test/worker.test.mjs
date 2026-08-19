@@ -148,3 +148,34 @@ test("records bounded dispatcher output when a command fails", async () => {
   assert.equal(failure.stderr, "database schema mismatch");
   assert.equal(failure.stdout.length, 2_000);
 });
+
+test("fails before tests and publication when the dispatcher changes nothing", async () => {
+  const { root, store } = await queuedStore();
+  let testsOrPublication = 0;
+  const result = await processNext({
+    store,
+    config: {
+      dryRun: false,
+      dataRoot: root,
+      dispatcherArgv: ["opencode", "run", "--dir", "{worktree}", "{promptFile}"],
+      testCommands: [["npm", "test"]],
+      commandTimeoutMs: 5000,
+      maxOutputBytes: 4096,
+      allowedPaths: ["docs/"]
+    },
+    issueClient: { createIssue: async () => ({ number: 12, url: "https://github.test/issues/12" }) },
+    worktrees: {
+      create: async () => ({ path: "/tmp/isolated", branch: "feedback/fb_no_change" }),
+      changedFiles: async () => []
+    },
+    publisher: { publish: async () => { testsOrPublication += 1; } },
+    execute: async (argv) => {
+      if (argv[0] !== "opencode") testsOrPublication += 1;
+      return { exitCode: 0, stdout: "", stderr: "" };
+    }
+  });
+
+  assert.equal(result.state, "failed");
+  assert.match(result.result.error, /no changes.*isolated worktree/i);
+  assert.equal(testsOrPublication, 0);
+});

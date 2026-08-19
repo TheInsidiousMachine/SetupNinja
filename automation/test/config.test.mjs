@@ -6,8 +6,8 @@ import { loadWorkerConfig } from "../src/config.mjs";
 test("defaults to dry-run with a visible plan", () => {
   const config = loadWorkerConfig({});
   assert.equal(config.dryRun, true);
-  assert.equal(config.dispatcherArgv[0], "opencode");
-  assert.deepEqual(config.testCommands, [["npm", "test"], ["npm", "run", "build"]]);
+  assert.deepEqual(config.dispatcherArgv.slice(0, 4), ["opencode", "run", "--dir", "{worktree}"]);
+  assert.deepEqual(config.testCommands, [["npm", "ci"], ["npm", "test"], ["npm", "run", "build"]]);
 });
 
 test("live mode requires GitHub and an explicit dispatcher command", () => {

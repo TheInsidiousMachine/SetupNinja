@@ -5,8 +5,8 @@ import { parseArgvJson } from "./command.mjs";
 
 const AUTOMATION_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = path.resolve(AUTOMATION_ROOT, "..");
-const DEFAULT_DISPATCHER = ["opencode", "run", "Read and follow the fixed policy in {promptFile}"];
-const DEFAULT_TESTS = [["npm", "test"], ["npm", "run", "build"]];
+const DEFAULT_DISPATCHER = ["opencode", "run", "--dir", "{worktree}", "Read and follow the fixed policy in {promptFile}"];
+const DEFAULT_TESTS = [["npm", "ci"], ["npm", "test"], ["npm", "run", "build"]];
 const DEFAULT_ALLOWED_PATHS = [
   "src/ui/", "tests/e2e/", "public/", "docs/"
 ];
