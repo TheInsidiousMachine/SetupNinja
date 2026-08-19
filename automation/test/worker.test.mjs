@@ -113,3 +113,38 @@ test("holds toolpath feedback instead of dispatching it", async () => {
   assert.equal(result.state, "held");
   assert.equal(dispatches, 0);
 });
+
+test("records bounded dispatcher output when a command fails", async () => {
+  const { root, store, record } = await queuedStore();
+  const error = new Error("command exited with code 1");
+  error.result = {
+    exitCode: 1,
+    signal: null,
+    stdout: "x".repeat(2_100),
+    stderr: "database schema mismatch"
+  };
+
+  const result = await processNext({
+    store,
+    config: {
+      dryRun: false,
+      dataRoot: root,
+      dispatcherArgv: ["opencode", "run", "{promptFile}"],
+      testCommands: [],
+      commandTimeoutMs: 5000,
+      maxOutputBytes: 4096,
+      allowedPaths: ["docs/"]
+    },
+    issueClient: { createIssue: async () => ({ number: 11, url: "https://github.test/issues/11" }) },
+    worktrees: { create: async () => ({ path: "/tmp/isolated", branch: "feedback/fb_failure" }) },
+    publisher: { publish: async () => assert.fail("publisher should not run") },
+    execute: async () => { throw error; }
+  });
+
+  const logs = await store.getLogs(record.id);
+  const failure = logs.find((entry) => entry.message === "Worker failed");
+  assert.equal(result.state, "failed");
+  assert.equal(failure.exitCode, 1);
+  assert.equal(failure.stderr, "database schema mismatch");
+  assert.equal(failure.stdout.length, 2_000);
+});

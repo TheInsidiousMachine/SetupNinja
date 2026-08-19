@@ -4,6 +4,20 @@ import path from "node:path";
 import { childEnvironment, expandArgv, runArgv } from "./command.mjs";
 
 const HELD_CATEGORIES = new Set(["toolpath", "export"]);
+const FAILURE_OUTPUT_LIMIT = 2_000;
+
+function commandFailureDetails(error) {
+  const result = error?.result;
+  if (!result) return { error: error.message };
+  const tail = (value) => String(value ?? "").slice(-FAILURE_OUTPUT_LIMIT);
+  return {
+    error: error.message,
+    exitCode: result.exitCode,
+    signal: result.signal,
+    stdout: tail(result.stdout),
+    stderr: tail(result.stderr)
+  };
+}
 
 function plannedActions(record, config) {
   return {
@@ -131,7 +145,8 @@ export async function processNext({ store, config, issueClient, worktrees, publi
       gatesPassed: config.testCommands.length
     });
   } catch (error) {
-    await store.appendLog(record.id, "error", "Worker failed", { error: error.message });
+    const failure = commandFailureDetails(error);
+    await store.appendLog(record.id, "error", "Worker failed", failure);
     return await store.fail(record.id, { error: error.message });
   }
 }
