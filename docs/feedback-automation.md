@@ -4,6 +4,8 @@
 
 The APK keeps the CAM workflow, viewer, tests, and export assets inside the package. It does not need a connection to plan, inspect, verify, or export a proof program.
 
+The live relay-to-agent path was exercised during this smoke check.
+
 When the phone is online, it posts queued feedback to the Mahoraga host over its private Tailscale address. The relay validates and rate-limits anonymous intake, stores it durably, and keeps status/log endpoints behind an admin bearer token. The app never contains a GitHub token or agent credential.
 
 The connected demo phone and Mahoraga are already on the same tailnet. The current endpoints are:
