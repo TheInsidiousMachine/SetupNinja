@@ -8,15 +8,15 @@ self.onmessage = (event: MessageEvent<WorkerIn>) => {
     const msg = event.data;
     let plan: JobPlan;
     if (msg.type === "demo") {
-      plan = planDemo(msg.machineId, msg.materialId, msg.compute, msg.tools);
+      plan = planDemo(msg.machine, msg.materialId, msg.compute, msg.tools);
     } else if (msg.type === "parametric") {
-      plan = planParametric(msg.spec, msg.tools, msg.machineId, msg.materialId, msg.compute);
+      plan = planParametric(msg.spec, msg.tools, msg.machine, msg.materialId, msg.compute);
     } else {
       const mesh = parseStl(msg.buffer);
       plan = planJob({
         partName: msg.name.replace(/\.stl$/i, ""),
         mesh,
-        machineId: msg.machineId,
+        machine: msg.machine,
         materialId: msg.materialId,
         compute: msg.compute,
         tools: msg.tools,

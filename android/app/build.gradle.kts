@@ -88,6 +88,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.activity:activity-ktx:1.9.3")
+    // Storage Access Framework wrapper, for writing onto a USB/CF card over OTG.
+    implementation("androidx.documentfile:documentfile:1.0.1")
 
     androidTestImplementation("androidx.test:core-ktx:1.7.0")
     androidTestImplementation("androidx.test:runner:1.7.0")

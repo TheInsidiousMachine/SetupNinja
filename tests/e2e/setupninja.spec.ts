@@ -22,6 +22,7 @@ test("demo follows check, safety review, and download gating", async ({ page }) 
   await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
   await expect(exportButton).toBeDisabled();
 
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   for (const checkbox of await page.getByRole("checkbox").all()) {
     await checkbox.check();
   }
@@ -34,7 +35,8 @@ test("demo follows check, safety review, and download gating", async ({ page }) 
   const body = await (await download.createReadStream()).toArray();
   const code = Buffer.concat(body).toString("utf8");
   expect(code).toContain("SETUPNINJA PROOF PROGRAM");
-  expect(code).toContain("G21 G90 G17 G40 G80 G94");
+  // SetupNinja posts inch (G20) by default; shops running these machines are SAE.
+  expect(code).toContain("G20 G90 G17 G40 G80 G94");
   expect(code).toContain("M30");
   expect(errors).toEqual([]);
 });
@@ -50,17 +52,19 @@ test("guided setup blocks invalid geometry and generates the current job", async
   await page.getByRole("button", { name: "Generate proof program" }).click();
   await expect(page.getByRole("alert")).toContainText("fit completely within the stock");
 
-  await page.getByRole("spinbutton", { name: "Width" }).nth(0).fill("60");
-  await page.getByRole("spinbutton", { name: "Depth" }).nth(0).fill("40");
-  await page.getByRole("spinbutton", { name: "Height" }).fill("12");
-  await page.getByRole("spinbutton", { name: "X" }).fill("5");
-  await page.getByRole("spinbutton", { name: "Y" }).fill("5");
-  await page.getByRole("spinbutton", { name: "Width" }).nth(1).fill("20");
-  await page.getByRole("spinbutton", { name: "Depth" }).nth(1).fill("15");
-  await page.getByRole("spinbutton", { name: "Depth below top" }).fill("3");
+  // Dimensions are entered in the machine profile's units, which default to inch.
+  await page.getByRole("spinbutton", { name: "Width" }).nth(0).fill("2.5");
+  await page.getByRole("spinbutton", { name: "Depth" }).nth(0).fill("1.5");
+  await page.getByRole("spinbutton", { name: "Height" }).fill("0.5");
+  await page.getByRole("spinbutton", { name: "X" }).fill("0.25");
+  await page.getByRole("spinbutton", { name: "Y" }).fill("0.25");
+  await page.getByRole("spinbutton", { name: "Width" }).nth(1).fill("0.8");
+  await page.getByRole("spinbutton", { name: "Depth" }).nth(1).fill("0.6");
+  await page.getByRole("spinbutton", { name: "Depth below top" }).fill("0.12");
   await page.getByRole("textbox", { name: "Part name" }).fill("Phone pocket");
   await page.getByRole("button", { name: "Generate proof program" }).click();
 
+  await page.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Phone pocket" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Run checks" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeDisabled();
@@ -71,12 +75,15 @@ test("changing a setup invalidates completed checks", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Run checks" }).click();
   await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   for (const checkbox of await page.getByRole("checkbox").all()) await checkbox.check();
   await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeEnabled();
 
+  await page.getByRole("button", { name: "Job", exact: true }).click();
   await page.getByRole("button", { name: "Small VMC" }).click();
   await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Run checks" })).toBeEnabled();
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   for (const checkbox of await page.getByRole("checkbox").all()) await expect(checkbox).not.toBeChecked();
 });
 

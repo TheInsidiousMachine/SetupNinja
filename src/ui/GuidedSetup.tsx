@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
-import type { ParametricFeature, ParametricSpec } from "../kernel/types";
+import { useEffect, useRef, useState } from "react";
+import { lengthIn, lengthToMm, lengthUnitLabel } from "../kernel/units";
+import type { ParametricFeature, ParametricSpec, UnitSystem } from "../kernel/types";
 
 export type FeatureKind = ParametricFeature["kind"];
 
@@ -7,6 +8,8 @@ type Props = {
   onGenerate: (spec: ParametricSpec) => void;
   onDirty?: () => void;
   disabled?: boolean;
+  /** Unit system the operator types in. Values convert to mm for the kernel. */
+  units?: UnitSystem;
 };
 
 const FEATURE_LABELS: Record<FeatureKind, string> = {
@@ -15,22 +18,47 @@ const FEATURE_LABELS: Record<FeatureKind, string> = {
   boss: "Boss / step",
 };
 
-export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
+export function GuidedSetup({ onGenerate, onDirty, disabled, units = "inch" }: Props) {
   const [photo, setPhoto] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [partName, setPartName] = useState("Guided part");
-  const [widthMm, setWidthMm] = useState(60);
-  const [depthMm, setDepthMm] = useState(40);
-  const [heightMm, setHeightMm] = useState(12);
+  // Dimensions are held in the operator's own units and converted to mm only
+  // when the spec is built, so typing never accumulates conversion drift.
+  const [width, setWidth] = useState(() => defaults(units).width);
+  const [depth, setDepth] = useState(() => defaults(units).depth);
+  const [height, setHeight] = useState(() => defaults(units).height);
   const [featureKind, setFeatureKind] = useState<FeatureKind>("face");
-  const [fx, setFx] = useState(15);
-  const [fy, setFy] = useState(10);
-  const [fw, setFw] = useState(30);
-  const [fd, setFd] = useState(20);
-  const [fdepth, setFdepth] = useState(4);
-  const [fheight, setFheight] = useState(6);
+  const [fx, setFx] = useState(() => defaults(units).fx);
+  const [fy, setFy] = useState(() => defaults(units).fy);
+  const [fw, setFw] = useState(() => defaults(units).fw);
+  const [fd, setFd] = useState(() => defaults(units).fd);
+  const [fdepth, setFdepth] = useState(() => defaults(units).fdepth);
+  const [fheight, setFheight] = useState(() => defaults(units).fheight);
   const photoRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const previousUnits = useRef(units);
+
+  // Switching the machine's unit system rewrites what is on screen rather than
+  // silently reinterpreting 60 inches as 60 millimetres.
+  useEffect(() => {
+    const from = previousUnits.current;
+    if (from === units) return;
+    previousUnits.current = units;
+    const convert = (value: number) => round(lengthIn(units, lengthToMm(from, value)), units);
+    setWidth(convert);
+    setDepth(convert);
+    setHeight(convert);
+    setFx(convert);
+    setFy(convert);
+    setFw(convert);
+    setFd(convert);
+    setFdepth(convert);
+    setFheight(convert);
+  }, [units]);
+
+  const unit = lengthUnitLabel(units);
+  const step = units === "inch" ? 0.0625 : 0.5;
+  const minSize = units === "inch" ? 0.02 : 0.5;
 
   function update<T>(setter: (value: T) => void, value: T) {
     setter(value);
@@ -55,11 +83,26 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
   }
 
   function buildFeature(): ParametricFeature {
+    const toMm = (value: number) => lengthToMm(units, value);
     if (featureKind === "face") return { kind: "face" };
     if (featureKind === "pocket") {
-      return { kind: "pocket", x: fx, y: fy, widthMm: fw, depthMm: fd, depthBelowTopMm: fdepth };
+      return {
+        kind: "pocket",
+        x: toMm(fx),
+        y: toMm(fy),
+        widthMm: toMm(fw),
+        depthMm: toMm(fd),
+        depthBelowTopMm: toMm(fdepth),
+      };
     }
-    return { kind: "boss", x: fx, y: fy, widthMm: fw, depthMm: fd, heightAboveTopMm: fheight };
+    return {
+      kind: "boss",
+      x: toMm(fx),
+      y: toMm(fy),
+      widthMm: toMm(fw),
+      depthMm: toMm(fd),
+      heightAboveTopMm: toMm(fheight),
+    };
   }
 
   function generate() {
@@ -73,14 +116,18 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
     setValidationError(null);
     const spec: ParametricSpec = {
       partName: partName.trim() || "Guided part",
-      stock: { widthMm, depthMm, heightMm },
+      stock: {
+        widthMm: lengthToMm(units, width),
+        depthMm: lengthToMm(units, depth),
+        heightMm: lengthToMm(units, height),
+      },
       feature: buildFeature(),
     };
     onGenerate(spec);
   }
 
   function validateSetup(): string | null {
-    if (![widthMm, depthMm, heightMm].every((value) => Number.isFinite(value) && value > 0)) {
+    if (![width, depth, height].every((value) => Number.isFinite(value) && value > 0)) {
       return "Stock width, depth, and height must each be a positive number.";
     }
 
@@ -92,10 +139,10 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
     if (![fw, fd].every((value) => Number.isFinite(value) && value > 0)) {
       return "Feature width and depth must each be a positive number.";
     }
-    if (fx + fw > widthMm || fy + fd > depthMm) {
+    if (fx + fw > width || fy + fd > depth) {
       return "The feature must fit completely within the stock width and depth.";
     }
-    if (featureKind === "pocket" && (!Number.isFinite(fdepth) || fdepth <= 0 || fdepth >= heightMm)) {
+    if (featureKind === "pocket" && (!Number.isFinite(fdepth) || fdepth <= 0 || fdepth >= height)) {
       return "Pocket depth must be positive and less than the stock height.";
     }
     if (featureKind === "boss" && (!Number.isFinite(fheight) || fheight <= 0)) {
@@ -157,31 +204,32 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
       </div>
 
       <div className="guided-block">
-        <p className="guided-label">3. Stock geometry (mm)</p>
+        <p className="guided-label">3. Stock geometry ({unit})</p>
         <div className="guided-grid">
-          <NumberField name="stockWidthMm" label="Width" value={widthMm} onChange={(v) => update(setWidthMm, v)} min={1} />
-          <NumberField name="stockDepthMm" label="Depth" value={depthMm} onChange={(v) => update(setDepthMm, v)} min={1} />
-          <NumberField name="stockHeightMm" label="Base height" value={heightMm} onChange={(v) => update(setHeightMm, v)} min={1} />
+          <NumberField name="stockWidthMm" label="Width" value={width} onChange={(v) => update(setWidth, v)} min={minSize} step={step} />
+          <NumberField name="stockDepthMm" label="Depth" value={depth} onChange={(v) => update(setDepth, v)} min={minSize} step={step} />
+          <NumberField name="stockHeightMm" label="Base height" value={height} onChange={(v) => update(setHeight, v)} min={minSize} step={step} />
         </div>
       </div>
 
       {featureKind !== "face" ? (
         <div className="guided-block">
           <p className="guided-label">
-            4. {featureKind === "pocket" ? "Pocket" : "Boss"} position &amp; size (mm)
+            4. {featureKind === "pocket" ? "Pocket" : "Boss"} position &amp; size ({unit})
           </p>
           <div className="guided-grid">
-            <NumberField name="featureX" label="X" value={fx} onChange={(v) => update(setFx, v)} min={0} />
-            <NumberField name="featureY" label="Y" value={fy} onChange={(v) => update(setFy, v)} min={0} />
-            <NumberField name="featureWidthMm" label="Width" value={fw} onChange={(v) => update(setFw, v)} min={0.5} />
-            <NumberField name="featureDepthMm" label="Depth" value={fd} onChange={(v) => update(setFd, v)} min={0.5} />
+            <NumberField name="featureX" label="X" value={fx} onChange={(v) => update(setFx, v)} min={0} step={step} />
+            <NumberField name="featureY" label="Y" value={fy} onChange={(v) => update(setFy, v)} min={0} step={step} />
+            <NumberField name="featureWidthMm" label="Width" value={fw} onChange={(v) => update(setFw, v)} min={minSize} step={step} />
+            <NumberField name="featureDepthMm" label="Depth" value={fd} onChange={(v) => update(setFd, v)} min={minSize} step={step} />
             {featureKind === "pocket" ? (
               <NumberField
                 name="pocketDepthBelowTopMm"
                 label="Depth below top"
                 value={fdepth}
                 onChange={(v) => update(setFdepth, v)}
-                min={0.5}
+                min={minSize}
+                step={step}
               />
             ) : (
               <NumberField
@@ -189,7 +237,8 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
                 label="Height above top"
                 value={fheight}
                 onChange={(v) => update(setFheight, v)}
-                min={0.5}
+                min={minSize}
+                step={step}
               />
             )}
           </div>
@@ -223,18 +272,33 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
   );
 }
 
+/** Starting dimensions, in whichever units the operator works in. */
+function defaults(units: UnitSystem) {
+  if (units === "inch") {
+    return { width: 2.5, depth: 1.5, height: 0.5, fx: 0.625, fy: 0.375, fw: 1.25, fd: 0.75, fdepth: 0.15, fheight: 0.25 };
+  }
+  return { width: 60, depth: 40, height: 12, fx: 15, fy: 10, fw: 30, fd: 20, fdepth: 4, fheight: 6 };
+}
+
+function round(value: number, units: UnitSystem): number {
+  const places = units === "inch" ? 4 : 2;
+  return Math.round(value * 10 ** places) / 10 ** places;
+}
+
 function NumberField({
   name,
   label,
   value,
   onChange,
   min,
+  step = 0.5,
 }: {
   name: string;
   label: string;
   value: number;
   onChange: (v: number) => void;
   min?: number;
+  step?: number;
 }) {
   return (
     <label className="guided-field">
@@ -245,7 +309,7 @@ function NumberField({
         inputMode="decimal"
         autoComplete="off"
         min={min}
-        step={0.5}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
       />

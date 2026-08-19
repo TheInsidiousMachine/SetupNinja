@@ -1,5 +1,5 @@
 import type { Tool } from "../kernel/types";
-import { TOOLS } from "./catalog";
+import { ALL_TOOLS } from "./catalog";
 
 export const TOOL_LIBRARY_KEY = "setupninja.tools.v1";
 
@@ -11,16 +11,16 @@ export const TOOL_LIBRARY_KEY = "setupninja.tools.v1";
 export function loadTools(): Tool[] {
   const raw = readRaw();
   if (!raw) {
-    saveTools(TOOLS);
-    return cloneTools(TOOLS);
+    saveTools(ALL_TOOLS);
+    return cloneTools(ALL_TOOLS);
   }
   try {
     const parsed = JSON.parse(raw);
     const tools = sanitizeTools(parsed);
-    if (tools.length === 0) return cloneTools(TOOLS);
+    if (tools.length === 0) return cloneTools(ALL_TOOLS);
     return tools;
   } catch {
-    return cloneTools(TOOLS);
+    return cloneTools(ALL_TOOLS);
   }
 }
 
@@ -29,13 +29,13 @@ export function saveTools(tools: Tool[]): void {
 }
 
 export function resetTools(): Tool[] {
-  saveTools(TOOLS);
-  return cloneTools(TOOLS);
+  saveTools(ALL_TOOLS);
+  return cloneTools(ALL_TOOLS);
 }
 
 /** Look up a tool from the user library, falling back to catalog defaults. */
 export function getUserTool(id: string, tools: Tool[]): Tool {
-  const found = tools.find((t) => t.id === id) ?? TOOLS.find((t) => t.id === id);
+  const found = tools.find((t) => t.id === id) ?? ALL_TOOLS.find((t) => t.id === id);
   if (!found) throw new Error(`Unknown tool ${id}`);
   return found;
 }

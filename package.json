@@ -1,7 +1,7 @@
 {
   "name": "setupninja",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "Phone-first setup assistant for deterministic proof G-code review.",
   "scripts": {

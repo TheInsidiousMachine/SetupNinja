@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 
 async function waitForViewport(page: Page) {
   await page.goto("/");
+  await page.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByRole("button", { name: "Run checks" })).toBeEnabled();
   await expect(page.getByRole("group", { name: "Interactive three-dimensional machining preview" })).toBeVisible();
   await expect(page.getByText(/Current (RAPID|LEAD|CUT)/)).toBeVisible();
@@ -46,12 +47,13 @@ test("viewport renders nonblank pixels and every camera/layer control works", as
     await page.getByRole("button", { name: label, exact: true }).click();
     await expect(page.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
   }
-  await page.getByRole("button", { name: "Orthographic projection" }).click();
-  await expect(page.getByRole("button", { name: "Orthographic projection" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Perspective projection" }).click();
+  await page.getByRole("button", { name: /Perspective projection/ }).click();
+  await expect(page.getByRole("button", { name: /Orthographic projection/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: /Orthographic projection/ }).click();
   await page.getByRole("button", { name: "Fit the complete job in the current view" }).click();
   await page.getByRole("button", { name: "Reset to the fitted isometric view" }).click();
 
+  await page.getByRole("button", { name: "Show or hide layers" }).click();
   for (const layer of ["stock", "target", "tool", "datum", "rapid", "lead", "cut"]) {
     const button = page.getByRole("button", { name: `Hide ${layer} layer` });
     await button.click();

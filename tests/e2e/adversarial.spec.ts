@@ -18,6 +18,7 @@ async function completeVerification(page: Page) {
   await expect(runButton).toBeEnabled();
   await runButton.click();
   await expect(page.getByRole("button", { name: "Check again" })).toBeEnabled();
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   for (const checkbox of await page.getByRole("checkbox").all()) {
     await checkbox.check();
   }
@@ -66,6 +67,7 @@ test("rapid source, machine, and material churn converges on the last selection"
   await expect(page.getByRole("button", { name: "Delrin" })).toHaveAttribute("aria-pressed", "true");
   await waitForReady(page);
 
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   await page.getByText("Inspect proof program", { exact: true }).click();
   const program = page.locator(".program-preview pre");
   await expect(program).toContainText("(MACHINE: Small VMC)");
@@ -138,6 +140,7 @@ test("late stale worker replies cannot replace the newest plan", async ({ page }
   await page.waitForFunction(() => Number((window as any).__adversarialWorkerPosted) >= 2);
   await page.getByRole("button", { name: "Delrin" }).click();
   await page.waitForFunction(() => Number((window as any).__adversarialWorkerPosted) >= 3);
+  await page.getByRole("button", { name: "Tooling", exact: true }).click();
   await page.getByText("Advanced setup & tool library", { exact: true }).click();
   await page.getByRole("button", { name: "Cloud", exact: true }).click();
   await page.waitForFunction(() => Number((window as any).__adversarialWorkerPosted) >= 4);
@@ -145,10 +148,13 @@ test("late stale worker replies cannot replace the newest plan", async ({ page }
   await page.evaluate(() => (window as any).__flushAdversarialWorkers());
 
   await waitForReady(page);
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   await page.getByText("Inspect proof program", { exact: true }).click();
   const program = page.locator(".program-preview pre");
   await expect(program).toContainText("(MACHINE: Small VMC)");
   await expect(program).toContainText("(MATERIAL: Delrin)");
+  await page.getByRole("button", { name: "Tooling", exact: true }).click();
+  await page.getByText("Advanced setup & tool library", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Cloud", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -163,6 +169,7 @@ test("repeated and double Run checks remain idempotent and keep export gated", a
   await expect(page.getByRole("button", { name: "Check again" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeDisabled();
 
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   for (const checkbox of await page.getByRole("checkbox").all()) await checkbox.check();
   await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeEnabled();
 
@@ -218,7 +225,9 @@ test("an ungenerated guided setup stays empty through mode and setup churn", asy
   await page.getByRole("button", { name: "Quick demo" }).click();
   await waitForReady(page);
   await page.getByRole("button", { name: "Guided setup" }).click();
+  await page.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByRole("heading", { name: "New guided job" })).toBeVisible();
+  await page.getByRole("button", { name: "Job", exact: true }).click();
   await expect(page.getByRole("button", { name: "Run checks" })).toBeDisabled();
   const requestsBeforeMutation = await page.evaluate(() => Number((window as any).__adversarialWorkerPosted));
 
@@ -226,8 +235,10 @@ test("an ungenerated guided setup stays empty through mode and setup churn", asy
   await page.getByRole("button", { name: "4140 steel" }).click();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   expect(await page.evaluate(() => Number((window as any).__adversarialWorkerPosted))).toBe(requestsBeforeMutation);
+  await page.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByRole("heading", { name: "New guided job" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Run checks" })).toBeDisabled();
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   await expect(page.locator(".program-preview pre")).toHaveText("Generate a job to inspect its proof program.");
 });
 
@@ -244,6 +255,7 @@ test("refresh clears transient verification and selection state", async ({ page 
   await expect(page.getByRole("button", { name: "Knee mill" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "6061-T6" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeDisabled();
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   for (const checkbox of await page.getByRole("checkbox").all()) await expect(checkbox).not.toBeChecked();
   await waitForReady(page);
 });
@@ -270,6 +282,8 @@ test("the primary workflow is operable with the keyboard alone", async ({ page }
   await expect(page.getByRole("button", { name: "Pocket", exact: true })).toHaveAttribute("aria-pressed", "true");
 
   await tabTo(page, "Generate proof program");
+  await page.keyboard.press("Enter");
+  await tabTo(page, "Review");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Guided part" })).toBeVisible();
   await waitForReady(page);
@@ -341,9 +355,11 @@ test("every setup mutation revokes export until checks and review are repeated",
   await waitForReady(page);
   await completeVerification(page);
 
-  const mutateAndAssertRevoked = async (name: string) => {
+  const mutateAndAssertRevoked = async (name: string, tab: "Job" | "Tooling" = "Job") => {
+    await page.getByRole("button", { name: tab, exact: true }).click();
     await page.getByRole("button", { name, exact: true }).click();
     await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeDisabled();
+    await page.getByRole("button", { name: "Program", exact: true }).click();
     for (const checkbox of await page.getByRole("checkbox").all()) await expect(checkbox).not.toBeChecked();
     await waitForReady(page);
   };
@@ -353,13 +369,16 @@ test("every setup mutation revokes export until checks and review are repeated",
   await mutateAndAssertRevoked("4140 steel");
   await completeVerification(page);
 
+  await page.getByRole("button", { name: "Tooling", exact: true }).click();
   await page.getByText("Advanced setup & tool library", { exact: true }).click();
-  await mutateAndAssertRevoked("Cloud");
+  await mutateAndAssertRevoked("Cloud", "Tooling");
   await completeVerification(page);
 
+  await page.getByRole("button", { name: "Job", exact: true }).click();
   await page.getByRole("button", { name: "Guided setup" }).click();
   await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Run checks" })).toBeDisabled();
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   for (const checkbox of await page.getByRole("checkbox").all()) await expect(checkbox).not.toBeChecked();
 });
 
@@ -371,11 +390,14 @@ test("editing a generated guided draft immediately invalidates its old proof pro
   await waitForReady(page);
   await completeVerification(page);
 
+  await page.getByRole("button", { name: "Job", exact: true }).click();
   await page.getByRole("textbox", { name: "Part name" }).fill("Edited after checks");
 
   await expect(page.getByRole("button", { name: "Export proof .nc" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Run checks" })).toBeDisabled();
+  await page.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Edited guided job" })).toBeVisible();
+  await page.getByRole("button", { name: "Program", exact: true }).click();
   await expect(page.locator(".program-preview pre")).toHaveText(
     "Generate a job to inspect its proof program.",
   );

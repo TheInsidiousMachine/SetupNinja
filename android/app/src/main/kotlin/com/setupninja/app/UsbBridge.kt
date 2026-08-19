@@ -19,12 +19,45 @@ import java.util.Locale
 import java.util.UUID
 
 /** Native storage operations exposed to the bundled web app as `window.AndroidUsb`. */
-class UsbBridge(private val context: Context) {
+class UsbBridge(
+    private val context: Context,
+    private val removableMedia: RemovableMedia = RemovableMedia(context),
+    /** Asks the host activity to launch the folder picker. Null outside an activity. */
+    private val requestMediaPicker: (() -> Unit)? = null,
+) {
 
     private val updateInstaller = UpdateInstaller(context)
 
     @JavascriptInterface
     fun listDevices(): String = "[]"
+
+    // --- Removable media (USB stick / CompactFlash over OTG) -----------------
+
+    /**
+     * Ask the operator to pick the card's root folder. The result arrives back
+     * in the page through `window.onRemovableMediaPicked`, because a
+     * JavascriptInterface method cannot block waiting for an activity result.
+     */
+    @JavascriptInterface
+    fun chooseRemovableMedia(): String {
+        val launcher = requestMediaPicker
+            ?: return errorJson("NO_ACTIVITY", "The folder picker is unavailable in this context.")
+        return try {
+            launcher()
+            JSONObject().put("ok", true).put("pending", true).toString()
+        } catch (error: Exception) {
+            errorJson("PICKER_FAILED", "Android could not open the folder picker.", error.message)
+        }
+    }
+
+    /** Folders already granted, so the app can write without prompting again. */
+    @JavascriptInterface
+    fun removableMediaTargets(): String = removableMedia.targets()
+
+    /** Write a program straight onto the chosen card. */
+    @JavascriptInterface
+    fun writeToRemovableMedia(treeUri: String?, fileName: String?, contents: String?): String =
+        removableMedia.write(treeUri, fileName, contents)
 
     @JavascriptInterface
     fun appInfo(): String = JSONObject()

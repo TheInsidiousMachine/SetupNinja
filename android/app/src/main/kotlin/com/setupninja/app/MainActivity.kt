@@ -58,6 +58,25 @@ class MainActivity : AppCompatActivity() {
             // No-op: WebView's onPermissionRequest is re-evaluated on next camera use.
         }
 
+    /**
+     * Folder picker for a USB stick or CF card on OTG. The chosen tree is
+     * persisted so later writes need no prompt, and the page is told the result
+     * through a callback because a JavascriptInterface call cannot wait for an
+     * activity result.
+     */
+    private val removableMediaPicker =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            val payload = if (uri == null) {
+                """{"ok":false,"code":"CANCELLED","message":"No folder was chosen."}"""
+            } else {
+                RemovableMedia(this).persist(uri)
+            }
+            webView.evaluateJavascript(
+                "window.onRemovableMediaPicked && window.onRemovableMediaPicked($payload);",
+                null,
+            )
+        }
+
     private val fileChooserLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val callback = fileChooserCallback
@@ -106,7 +125,10 @@ class MainActivity : AppCompatActivity() {
         })
 
         // Extension point for the follow-up USB mass-storage task. See UsbBridge.kt.
-        webView.addJavascriptInterface(UsbBridge(this), "AndroidUsb")
+        webView.addJavascriptInterface(
+            UsbBridge(this, requestMediaPicker = { removableMediaPicker.launch(null) }),
+            "AndroidUsb",
+        )
 
         webView.loadUrl(START_URL)
     }

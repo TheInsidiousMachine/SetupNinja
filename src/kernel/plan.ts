@@ -1,5 +1,6 @@
 import { simulatePath } from "../adaptive/controller";
-import { getMachine, getMaterial, TOOLS } from "../machine/catalog";
+import { getMachine, getMaterial, ALL_TOOLS } from "../machine/catalog";
+import { expandDrillCycle, planDrilling } from "./drill";
 import { createHeightmap, fillHeightmap, heightmapMinMax } from "./heightmap";
 import { rasterizeMesh } from "./mesh";
 import { buildParametricHeightmap } from "./parametric";
@@ -8,7 +9,9 @@ import { generateToolpaths } from "./toolpath";
 import type {
   ComputeTarget,
   Heightmap,
+  HolePattern,
   JobPlan,
+  MachineProfile,
   Mesh,
   ParametricSpec,
   SenseSample,
@@ -19,16 +22,24 @@ export type PlanRequest = {
   partName: string;
   heightmap?: Heightmap;
   mesh?: Mesh;
-  machineId: string;
+  /** Machine id from the catalog, or a full profile for an operator-saved machine. */
+  machine: string | MachineProfile;
   materialId: string;
   compute: ComputeTarget;
   cellMm?: number;
   tools?: Tool[];
   cutBounds?: { x0: number; y0: number; x1: number; y1: number };
+  /** Hole patterns drilled after the milling passes. */
+  holes?: HolePattern[];
 };
 
+/** Tools that remove material by milling, as opposed to drilling. */
+export function millingTools(tools: Tool[]): Tool[] {
+  return tools.filter((tool) => tool.type === "endmill" || tool.type === "ball");
+}
+
 export function planJob(req: PlanRequest): JobPlan {
-  const machine = getMachine(req.machineId);
+  const machine = typeof req.machine === "string" ? getMachine(req.machine) : req.machine;
   const material = getMaterial(req.materialId);
   const cell = req.cellMm ?? 1.2;
   const heightmap =
@@ -49,22 +60,42 @@ export function planJob(req: PlanRequest): JobPlan {
     h: stockTop,
   };
 
-  const tools = req.tools && req.tools.length > 0 ? req.tools : TOOLS;
-  const unsupportedTool = tools.slice(0, 2).find(
-    (tool) => tool.type !== "endmill" || tool.material !== "carbide",
-  );
+  const tools = req.tools && req.tools.length > 0 ? req.tools : ALL_TOOLS;
+  const cutters = millingTools(tools);
+  if (cutters.length === 0) {
+    throw new Error("This job needs at least one endmill in the tool library.");
+  }
+  const unsupportedTool = cutters.slice(0, 2).find((tool) => tool.material !== "carbide");
   if (unsupportedTool) {
     throw new Error(
       `${unsupportedTool.name} is not supported by this proof planner. Use a carbide flat endmill.`,
     );
   }
-  const paths = generateToolpaths(heightmap, tools, material, machine, {
+  const paths = generateToolpaths(heightmap, cutters, material, machine, {
     leaveMm: 0.25,
     stockTop,
     stockPadMm: stockPad,
     cutBounds: req.cutBounds,
   });
-  if (!paths.some((path) => path.points.some((point) => point.kind === "cut"))) {
+
+  const drilling = planDrilling({
+    patterns: req.holes ?? [],
+    stock,
+    // Depths datum from the finished face, which sits below the raw stock top by
+    // the facing allowance.
+    finishedTopZMm: max,
+    tools,
+    material,
+    machine,
+  });
+  if (drilling.missingTools.length > 0) {
+    throw new Error(
+      `The tool library has no ${[...new Set(drilling.missingTools)].join(", ")} for the holes in this job.`,
+    );
+  }
+
+  const hasMilling = paths.some((path) => path.points.some((point) => point.kind === "cut"));
+  if (!hasMilling && drilling.cycles.length === 0) {
     throw new Error("No selected cutter fits inside this job. Increase the stock footprint or add a smaller tool.");
   }
 
@@ -76,19 +107,20 @@ export function planJob(req: PlanRequest): JobPlan {
     machine,
     material,
     paths,
+    drillCycles: drilling.cycles,
     compute: req.compute,
   };
 }
 
 export function planDemo(
-  machineId: string,
+  machine: string | MachineProfile,
   materialId: string,
   compute: ComputeTarget,
   tools?: Tool[],
 ): JobPlan {
   return planJob({
     partName: BRACKET.name,
-    machineId,
+    machine,
     materialId,
     compute,
     tools,
@@ -104,7 +136,7 @@ export function planDemo(
 export function planParametric(
   spec: ParametricSpec,
   tools: Tool[],
-  machineId: string,
+  machine: string | MachineProfile,
   materialId: string,
   compute: ComputeTarget,
 ): JobPlan {
@@ -112,11 +144,12 @@ export function planParametric(
   return planJob({
     partName: spec.partName,
     heightmap,
-    machineId,
+    machine,
     materialId,
     compute,
     cellMm: spec.cellMm,
     tools,
+    holes: spec.holes,
     cutBounds: {
       x0: 0,
       y0: 0,
@@ -130,6 +163,13 @@ export function simulateJob(plan: JobPlan): SenseSample[] {
   const samples: SenseSample[] = [];
   for (const path of plan.paths) {
     samples.push(...simulatePath(path.points, path.tool, plan.machine, plan.material));
+  }
+  // Drilling is simulated from the expanded cycle, so the preview and the load
+  // model see the same motion the control will actually run.
+  for (const cycle of plan.drillCycles ?? []) {
+    samples.push(
+      ...simulatePath(expandDrillCycle(cycle), cycle.tool, plan.machine, plan.material),
+    );
   }
   return samples;
 }
