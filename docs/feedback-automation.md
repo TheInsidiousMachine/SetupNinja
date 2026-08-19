@@ -13,9 +13,9 @@ The old Mahoraga tailnet relay still works for local smoke tests, but it is not 
 The connected demo phone and Mahoraga are already on the same tailnet. The current endpoints are:
 
 - Local feedback relay: `http://100.127.108.57:8877/v1/feedback`
-- Clayton update manifest: `https://github.com/TheInsidiousMachine/ClayCam/releases/latest/download/manifest.json`
-- Clayton APK download: `https://github.com/TheInsidiousMachine/ClayCam/releases/latest/download/setupninja-demo.apk`
-- Clayton feedback fallback: `https://github.com/TheInsidiousMachine/ClayCam/issues/new?labels=clayton-feedback,demo`
+- Clayton update manifest: `https://github.com/TheInsidiousMachine/SetupNinja/releases/latest/download/manifest.json`
+- Clayton APK download: `https://github.com/TheInsidiousMachine/SetupNinja/releases/latest/download/setupninja-demo.apk`
+- Clayton feedback fallback: `https://github.com/TheInsidiousMachine/SetupNinja/issues/new?labels=clayton-feedback,demo`
 
 This HTTP route is still WireGuard-encrypted by Tailscale. Android permits cleartext only for the exact tailnet host. APK installation additionally requires a build-pinned RSA signature over the update manifest and a matching SHA-256. Public or LAN HTTP artifact URLs are rejected.
 
@@ -46,7 +46,7 @@ GitHub branch protection is unavailable on the current private-repository plan. 
 
 The app checks its configured manifest at startup/resume. A newer signed build produces an **Install update** action. Android then shows its required package-installer confirmation. Silent APK replacement is not available to an ordinary app on stock Android.
 
-The repository is currently private. For Clayton to download directly from GitHub, either invite him to the repository or move the demo release feed to a public repository/public binary host. Do not embed a private GitHub token in the APK.
+The SetupNinja release repository is public so Clayton can download directly from GitHub and the app can fetch its update manifest without embedding a GitHub token.
 
 ## Local operations
 

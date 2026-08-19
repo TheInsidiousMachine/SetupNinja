@@ -25,7 +25,7 @@ The remaining production blockers are:
 
 ## Clayton's first feedback pass
 
-1. Download the latest APK from `https://github.com/TheInsidiousMachine/ClayCam/releases/latest/download/setupninja-demo.apk`, install it, and open it while online once; then enable airplane mode and complete Quick demo through `.nc` export.
+1. Download the latest APK from `https://github.com/TheInsidiousMachine/SetupNinja/releases/latest/download/setupninja-demo.apk`, install it, and open it while online once; then enable airplane mode and complete Quick demo through `.nc` export.
 2. Orbit, pan, pinch zoom, use each standard view/projection, and hide/show every viewport layer.
 3. Create one guided job that resembles a common shop part and inspect the proof G-code.
 4. Import one representative STL and report incorrect scale/orientation or missing setup information.

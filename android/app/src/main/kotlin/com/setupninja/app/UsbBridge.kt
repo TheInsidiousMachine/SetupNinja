@@ -42,7 +42,7 @@ class UsbBridge(private val context: Context) {
         val trusted = uri != null &&
             uri.scheme == "https" &&
             uri.host == "github.com" &&
-            uri.path.orEmpty().startsWith("/TheInsidiousMachine/ClayCam/issues/new")
+            uri.path.orEmpty().startsWith("/TheInsidiousMachine/SetupNinja/issues/new")
         if (!trusted) {
             return errorJson("UNTRUSTED_URL", "Only the configured GitHub feedback page can be opened.")
         }
