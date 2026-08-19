@@ -3,6 +3,7 @@ name: Gated demo APK release
 on:
   push:
     branches:
+      - main
       - codex/setupninja-demo
   workflow_dispatch:
     inputs:
