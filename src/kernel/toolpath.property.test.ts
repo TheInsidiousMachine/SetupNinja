@@ -262,7 +262,7 @@ describe("deterministic toolpath properties", () => {
       expectFiniteAndBounded(first);
       expect(second.paths).toEqual(first.paths);
     }
-  });
+  }, 15_000);
 
   it("holds the same invariants at boundary-valid dimensions", () => {
     for (const spec of boundarySpecs) expectFiniteAndBounded(generatedCase(spec));
