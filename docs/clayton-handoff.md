@@ -7,7 +7,7 @@
 - Machinist viewport with orbit/pan/zoom, fit/reset, ISO/top/front/right, perspective/orthographic, stock/target/tool/datum controls, rapid/lead/cut controls, tool-separated paths, XYZ datum, grid, stock edges, current cutter, and selectable path-point readout for coordinates/feed/RPM/tool.
 - Fast in-app feedback dialog with category, severity, details, explicit diagnostics opt-in, offline queue, online retry, and Android share fallback.
 - Private tailnet feedback relay, GitHub issue creation, isolated OpenCode worktrees, path/test gates, low-risk UI PR publication, and gated auto-merge workflow.
-- Stable demo APK signing identity and signed/checksummed update manifest. App checks for newer builds and hands a verified APK to Android's installer.
+- Post-merge signed APK publication with monotonic versions, pinned certificate verification, and an atomically advanced signed/checksummed update manifest. The app checks for newer builds and hands a verified APK to Android's installer.
 
 ## Demo boundary
 

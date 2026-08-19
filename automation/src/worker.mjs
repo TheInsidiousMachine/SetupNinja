@@ -69,7 +69,7 @@ function executionOptions(config, cwd) {
   };
 }
 
-export async function processNext({ store, config, issueClient, worktrees, publisher, execute = runArgv }) {
+export async function processNext({ store, config, issueClient, worktrees, publisher, releasePublisher, execute = runArgv }) {
   const record = await store.claimNext();
   if (!record) return null;
   try {
@@ -133,6 +133,20 @@ export async function processNext({ store, config, issueClient, worktrees, publi
     });
     await store.appendLog(record.id, "info", "Pull request published", { pullRequest });
 
+    let release = null;
+    if (pullRequest.autoMerged && releasePublisher) {
+      release = await releasePublisher.publish({
+        worktree,
+        feedbackId: record.id,
+        summary: record.feedback.summary
+      });
+      await store.appendLog(record.id, "info", "Signed demo update published", {
+        versionCode: release.versionCode,
+        versionName: release.versionName,
+        apkUrl: release.apkUrl
+      });
+    }
+
     await issueClient.addComment(
       issue.number,
       `Automation completed its configured test and path gates. Pull request: ${pullRequest.url}. The independent repository gate must pass before merge.`
@@ -146,6 +160,7 @@ export async function processNext({ store, config, issueClient, worktrees, publi
       issue,
       worktree,
       pullRequest,
+      release,
       changedFiles,
       gatesPassed: config.testCommands.length
     });

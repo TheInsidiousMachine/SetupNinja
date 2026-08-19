@@ -30,3 +30,20 @@ test("live mode parses shell-free dispatcher and test command arrays", () => {
   assert.equal(config.dispatcherArgv[0], "omnigent");
   assert.equal(config.testCommands.length, 2);
 });
+
+test("loads opt-in local signed release settings", () => {
+  const config = loadWorkerConfig({
+    SETUPNINJA_AUTO_RELEASE: "true",
+    SETUPNINJA_RELEASE_ROOT: "/tmp/releases",
+    SETUPNINJA_RELEASE_BASE_URL: "https://downloads.example.test",
+    SETUPNINJA_UPDATE_SIGNING_KEY_FILE: "/tmp/update.pem",
+    SETUPNINJA_UPDATE_PUBLIC_KEY_FILE: "/tmp/update.b64",
+    SETUPNINJA_FEEDBACK_URL: "https://feedback.example.test",
+    SETUPNINJA_UPDATE_URL: "https://updates.example.test/demo.json",
+    SETUPNINJA_ANDROID_CERT_SHA256: "a".repeat(64),
+    ANDROID_HOME: "/tmp/android"
+  });
+  assert.equal(config.autoRelease, true);
+  assert.equal(config.releaseBaseUrl, "https://downloads.example.test");
+  assert.equal(config.updateSigningKeyFile, "/tmp/update.pem");
+});

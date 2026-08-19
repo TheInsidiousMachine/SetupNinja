@@ -101,7 +101,10 @@ export function runArgv(argv, { cwd, timeoutMs, maxOutputBytes, env = process.en
 export function childEnvironment(environment = process.env) {
   const child = { ...environment };
   for (const key of Object.keys(child)) {
-    if (key === "GITHUB_TOKEN" || key === "GH_TOKEN" || key.startsWith("FEEDBACK_") || key === "RELAY_TOKEN") delete child[key];
+    if (
+      key === "GITHUB_TOKEN" || key === "GH_TOKEN" || key.startsWith("FEEDBACK_") || key === "RELAY_TOKEN" ||
+      key.startsWith("DEMO_UPDATE_") || key.includes("KEYSTORE") || key.includes("SIGNING_KEY")
+    ) delete child[key];
   }
   return child;
 }

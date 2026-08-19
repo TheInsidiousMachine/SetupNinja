@@ -2,6 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { loadWorkerConfig } from "./config.mjs";
 import { GitHubIssueClient } from "./github.mjs";
+import { LocalReleasePublisher } from "./local-release.mjs";
 import { FeedbackStore } from "./store.mjs";
 import { processNext } from "./worker.mjs";
 import { WorktreeManager } from "./worktree.mjs";
@@ -24,13 +25,18 @@ const publisher = config.dryRun ? null : new GitPublisher({
   timeoutMs: config.commandTimeoutMs,
   maxOutputBytes: config.maxOutputBytes
 });
+const releasePublisher = config.dryRun || !config.autoRelease ? null : new LocalReleasePublisher({
+  ...config,
+  timeoutMs: config.commandTimeoutMs,
+  maxOutputBytes: config.maxOutputBytes
+});
 const once = process.argv.includes("--once");
 let stopping = false;
 process.once("SIGINT", () => { stopping = true; });
 process.once("SIGTERM", () => { stopping = true; });
 
 do {
-  const result = await processNext({ store, config, issueClient, worktrees, publisher });
+  const result = await processNext({ store, config, issueClient, worktrees, publisher, releasePublisher });
   if (result) process.stdout.write(`${JSON.stringify({ id: result.id, state: result.state })}\n`);
   if (once) break;
   if (!result && !stopping) await delay(config.pollMs);

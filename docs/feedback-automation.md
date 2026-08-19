@@ -31,7 +31,9 @@ Automatic publication is deliberately limited to these paths:
 
 Toolpath and export feedback, blocker severity, CAM/kernel changes, Android native changes, dependencies, signing, automation, and workflows are held or rejected. They do not auto-merge.
 
-For an allowed UI change, the worker runs Vitest, the production build, Playwright, Android lint, and APK assembly, then commits, pushes, and opens a labeled PR. The current private-repository token cannot publish workflow files because it lacks GitHub's `workflow` OAuth scope, so the live worker can squash-merge that exact tested head itself. Once that scope is granted, `.github/workflows/feedback-pr-gate.yml` provides an independent duplicate gate before merge.
+For an allowed UI change, the worker installs locked dependencies, runs Vitest, the production build, Playwright, Android lint, and APK assembly, then commits, pushes, and opens a labeled PR. The current private-repository token cannot publish workflow files because it lacks GitHub's `workflow` OAuth scope, so the live worker can squash-merge that exact tested head itself. Once that scope is granted, `.github/workflows/feedback-pr-gate.yml` provides an independent duplicate gate before merge.
+
+After a successful local auto-merge, the worker creates the next monotonic Android version, copies the tested web bundle into packaged assets, builds the signed release, verifies the expected Android signing-certificate SHA-256, and publishes the APK plus RSA-signed update manifest to the private relay. Artifact publication happens before an atomic manifest replacement, so a phone cannot discover a release before its APK is available. Android still requires Clayton to confirm installation.
 
 GitHub branch protection is unavailable on the current private-repository plan. The independent Actions job is therefore the enforceable auto-merge gate. Moving the repository to a plan with rulesets should precede broadening automatic approval.
 

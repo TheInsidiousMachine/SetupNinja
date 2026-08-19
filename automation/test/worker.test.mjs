@@ -112,11 +112,18 @@ test("closes the tracking issue only after an auto-merge", async () => {
     publisher: {
       publish: async () => ({ url: "https://github.test/pull/13", autoMerged: true })
     },
+    releasePublisher: {
+      publish: async () => {
+        calls.push("release");
+        return { versionCode: 3, versionName: "0.2.0-demo.3", apkUrl: "https://downloads.example.test/app-3.apk" };
+      }
+    },
     execute: async () => ({ exitCode: 0, stdout: "", stderr: "" })
   });
 
   assert.equal(result.state, "complete");
-  assert.deepEqual(calls, ["comment", "close"]);
+  assert.equal(result.result.release.versionCode, 3);
+  assert.deepEqual(calls, ["release", "comment", "close"]);
 });
 
 test("fixed worker prompt references untrusted data without embedding it", () => {

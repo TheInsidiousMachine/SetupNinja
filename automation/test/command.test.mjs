@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { expandArgv, parseArgvJson, runArgv } from "../src/command.mjs";
+import { childEnvironment, expandArgv, parseArgvJson, runArgv } from "../src/command.mjs";
 
 test("parses an argv array and rejects shell command wrappers", () => {
   assert.deepEqual(
@@ -50,4 +50,16 @@ test("terminates commands that exceed their timeout", async () => {
     }),
     /timed out/
   );
+});
+
+test("removes repository and release credentials from coding-agent environments", () => {
+  const environment = childEnvironment({
+    PATH: "/bin",
+    GITHUB_TOKEN: "github",
+    FEEDBACK_ADMIN_TOKEN: "feedback",
+    DEMO_UPDATE_SIGNING_KEY_PEM: "private",
+    SETUPNINJA_UPDATE_SIGNING_KEY_FILE: "/private/key",
+    DEMO_ANDROID_KEYSTORE_BASE64: "keystore"
+  });
+  assert.deepEqual(environment, { PATH: "/bin" });
 });
