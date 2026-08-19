@@ -137,6 +137,10 @@ export async function processNext({ store, config, issueClient, worktrees, publi
       issue.number,
       `Automation completed its configured test and path gates. Pull request: ${pullRequest.url}. The independent repository gate must pass before merge.`
     );
+    if (pullRequest.autoMerged) {
+      await issueClient.closeIssue(issue.number);
+      await store.appendLog(record.id, "info", "Tracking issue closed after auto-merge", { issueNumber: issue.number });
+    }
     return await store.complete(record.id, {
       dryRun: false,
       issue,

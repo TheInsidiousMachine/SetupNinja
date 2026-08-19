@@ -36,3 +36,23 @@ test("creates an issue through the configured repository API", async () => {
   assert.equal(request.options.headers.authorization, "Bearer secret");
   assert.deepEqual(JSON.parse(request.options.body).labels, ["clayton-feedback"]);
 });
+
+test("closes a completed tracking issue", async () => {
+  let request;
+  const client = new GitHubIssueClient({
+    token: "secret",
+    repository: "owner/repo",
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return new Response(JSON.stringify({ state: "closed" }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    }
+  });
+
+  await client.closeIssue(42);
+  assert.equal(request.url, "https://api.github.com/repos/owner/repo/issues/42");
+  assert.equal(request.options.method, "PATCH");
+  assert.deepEqual(JSON.parse(request.options.body), { state: "closed", state_reason: "completed" });
+});

@@ -72,4 +72,11 @@ export class GitHubIssueClient {
       body: JSON.stringify({ body: message })
     });
   }
+
+  async closeIssue(issueNumber) {
+    await this.request(`/repos/${this.repository}/issues/${issueNumber}`, {
+      method: "PATCH",
+      body: JSON.stringify({ state: "closed", state_reason: "completed" })
+    });
+  }
 }

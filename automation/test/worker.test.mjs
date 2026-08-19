@@ -58,7 +58,8 @@ test("live processing creates an issue, dispatches in a worktree, and runs gates
         calls.push("issue");
         return { number: 9, url: "https://github.test/issues/9" };
       },
-      addComment: async () => calls.push("comment")
+      addComment: async () => calls.push("comment"),
+      closeIssue: async () => calls.push("close")
     },
     worktrees: {
       create: async () => {
@@ -83,6 +84,39 @@ test("live processing creates an issue, dispatches in a worktree, and runs gates
   assert.deepEqual(calls, ["issue", "worktree", "dispatch", "npm test", "npm run build", "publish", "comment"]);
   assert.equal(result.state, "complete");
   assert.equal(result.result.issue.number, 9);
+});
+
+test("closes the tracking issue only after an auto-merge", async () => {
+  const { root, store } = await queuedStore();
+  const calls = [];
+  const result = await processNext({
+    store,
+    config: {
+      dryRun: false,
+      dataRoot: root,
+      dispatcherArgv: ["opencode", "run", "--dir", "{worktree}", "{promptFile}"],
+      testCommands: [],
+      commandTimeoutMs: 5000,
+      maxOutputBytes: 4096,
+      allowedPaths: ["docs/"]
+    },
+    issueClient: {
+      createIssue: async () => ({ number: 13, url: "https://github.test/issues/13" }),
+      addComment: async () => calls.push("comment"),
+      closeIssue: async () => calls.push("close")
+    },
+    worktrees: {
+      create: async () => ({ path: "/tmp/isolated", branch: "feedback/fb_merge" }),
+      changedFiles: async () => ["docs/feedback-automation.md"]
+    },
+    publisher: {
+      publish: async () => ({ url: "https://github.test/pull/13", autoMerged: true })
+    },
+    execute: async () => ({ exitCode: 0, stdout: "", stderr: "" })
+  });
+
+  assert.equal(result.state, "complete");
+  assert.deepEqual(calls, ["comment", "close"]);
 });
 
 test("fixed worker prompt references untrusted data without embedding it", () => {
