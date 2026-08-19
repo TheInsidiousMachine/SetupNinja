@@ -50,7 +50,7 @@ jobs:
       - run: npm run build
       - name: Install Playwright Chromium
         run: npx playwright install chromium
-      - run: npm run test:e2e
+      - run: npm run test:e2e:ci
       - name: Bundle web app into Android assets
         run: rsync -a --delete dist/ android/app/src/main/assets/www/
       - name: Lint and build APK
