@@ -29,7 +29,7 @@ Automatic publication is deliberately limited to these paths:
 
 Toolpath and export feedback, blocker severity, CAM/kernel changes, Android native changes, dependencies, signing, automation, and workflows are held or rejected. They do not auto-merge.
 
-For an allowed UI change, the worker runs Vitest, the production build, and Playwright, then commits, pushes, and opens a labeled PR. `.github/workflows/feedback-pr-gate.yml` independently repeats the path gate, automation tests, unit/property tests, production build, Playwright matrix, Android lint, and APK assembly before squash-merging.
+For an allowed UI change, the worker runs Vitest, the production build, Playwright, Android lint, and APK assembly, then commits, pushes, and opens a labeled PR. The current private-repository token cannot publish workflow files because it lacks GitHub's `workflow` OAuth scope, so the live worker can squash-merge that exact tested head itself. Once that scope is granted, `.github/workflows/feedback-pr-gate.yml` provides an independent duplicate gate before merge.
 
 GitHub branch protection is unavailable on the current private-repository plan. The independent Actions job is therefore the enforceable auto-merge gate. Moving the repository to a plan with rulesets should precede broadening automatic approval.
 

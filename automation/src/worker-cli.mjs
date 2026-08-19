@@ -19,6 +19,7 @@ const publisher = config.dryRun ? null : new GitPublisher({
   repository: config.githubRepository,
   baseBranch: config.pullRequestBaseBranch,
   labels: config.pullRequestLabels,
+  autoMerge: config.autoMerge,
   dataRoot: config.dataRoot,
   timeoutMs: config.commandTimeoutMs,
   maxOutputBytes: config.maxOutputBytes

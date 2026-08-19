@@ -79,6 +79,7 @@ export function loadWorkerConfig(env = process.env) {
     issueLabels: (env.FEEDBACK_ISSUE_LABELS ?? "clayton-feedback,demo").split(",").map((item) => item.trim()).filter(Boolean),
     pullRequestLabels: (env.FEEDBACK_PR_LABELS ?? "clayton-demo-auto,risk-reviewed-low").split(",").map((item) => item.trim()).filter(Boolean),
     pullRequestBaseBranch: env.FEEDBACK_PR_BASE_BRANCH ?? "main",
+    autoMerge: env.FEEDBACK_AUTO_MERGE === "true",
     githubToken: env.GITHUB_TOKEN,
     githubRepository: env.GITHUB_REPOSITORY,
     commandTimeoutMs: positiveInteger(env.FEEDBACK_COMMAND_TIMEOUT_MS, 30 * 60_000, "FEEDBACK_COMMAND_TIMEOUT_MS", 2 * 60 * 60_000),

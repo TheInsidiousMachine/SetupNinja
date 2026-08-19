@@ -16,6 +16,7 @@ export class GitPublisher {
     repository,
     baseBranch,
     labels,
+    autoMerge = false,
     dataRoot,
     timeoutMs = 60_000,
     maxOutputBytes = 1024 * 1024,
@@ -26,6 +27,7 @@ export class GitPublisher {
     this.repository = safeName(repository, "repository");
     this.baseBranch = safeName(baseBranch, "base branch");
     this.labels = labels.map((label) => safeName(label, "label"));
+    this.autoMerge = autoMerge;
     this.dataRoot = path.resolve(dataRoot);
     this.timeoutMs = timeoutMs;
     this.maxOutputBytes = maxOutputBytes;
@@ -48,6 +50,10 @@ export class GitPublisher {
       "-c", "user.email=feedback-bot@users.noreply.github.com",
       "commit", "-m", `fix(feedback): address ${feedbackId}`
     ], this.options(worktree.path));
+    const headCommit = (await this.execute(
+      ["git", "rev-parse", "HEAD"],
+      this.options(worktree.path)
+    )).stdout.trim();
 
     await this.execute(["gh", "auth", "setup-git"], this.options(worktree.path, true));
     await this.execute(
@@ -80,6 +86,15 @@ export class GitPublisher {
     if (!/^https:\/\/github\.com\//.test(url) && !/^https:\/\/github\.test\//.test(url)) {
       throw new Error("gh pr create did not return a pull request URL");
     }
-    return { url, branch: worktree.branch };
+    if (this.autoMerge) {
+      await this.execute([
+        "gh", "pr", "merge", url,
+        "--repo", this.repository,
+        "--squash",
+        "--delete-branch",
+        "--match-head-commit", headCommit
+      ], this.options(worktree.path, true));
+    }
+    return { url, branch: worktree.branch, autoMerged: this.autoMerge };
   }
 }
