@@ -1,0 +1,16 @@
+{
+  "name": "claycam-feedback-automation",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/*.mjs",
+    "relay": "node src/relay-cli.mjs",
+    "worker": "node src/worker-cli.mjs",
+    "worker:once": "node src/worker-cli.mjs --once"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

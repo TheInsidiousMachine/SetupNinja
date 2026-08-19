@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vite
+playwright-report
+test-results
+.cache
+*.log
+.env
+.env.*
+screenshot-tmp

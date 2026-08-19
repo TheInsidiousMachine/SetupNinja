@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "channel": "demo",
+  "versionCode": 2,
+  "versionName": "0.2.0-demo.2",
+  "apkUrl": "https://github.com/OWNER/REPOSITORY/releases/download/TAG/setupninja-demo-2.apk",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "notes": "Demo release notes",
+  "publishedAt": "2026-08-19T00:00:00.000Z",
+  "signature": "BASE64_RSA_SHA256_SIGNATURE"
+}

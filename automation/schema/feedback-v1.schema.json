@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://setupninja.example/schema/feedback-v1.schema.json",
+  "title": "SetupNinja feedback v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "createdAt",
+    "appVersion",
+    "category",
+    "severity",
+    "summary",
+    "details",
+    "sentAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1, "maxLength": 100, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+    "createdAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "appVersion": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "category": { "enum": ["bug", "workflow", "toolpath", "viewer", "export", "other"] },
+    "severity": { "enum": ["blocker", "high", "normal", "low"] },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "details": { "type": "string", "maxLength": 2000 },
+    "diagnostics": { "type": "object", "maxProperties": 30 },
+    "sentAt": { "type": "string", "format": "date-time", "maxLength": 40 }
+  }
+}
