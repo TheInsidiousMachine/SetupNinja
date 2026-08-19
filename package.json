@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --grep-invert \"visual baseline\"",
     "test:a11y": "playwright test -g @a11y",
     "test:visual": "playwright test tests/e2e/setupninja.visual.spec.ts",
     "screenshots": "node scripts/capture-screenshots.mjs"
