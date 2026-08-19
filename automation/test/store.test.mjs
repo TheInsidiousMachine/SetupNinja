@@ -8,7 +8,7 @@ import { FeedbackStore } from "../src/store.mjs";
 import { validFeedback } from "./fixtures.mjs";
 
 test("persists queued feedback and exposes status", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-feedback-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-feedback-"));
   const store = new FeedbackStore(root);
   const record = await store.enqueue(validFeedback, { remoteAddress: "127.0.0.1" });
 
@@ -23,7 +23,7 @@ test("persists queued feedback and exposes status", async () => {
 });
 
 test("claims each pending record at most once", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-feedback-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-feedback-"));
   const store = new FeedbackStore(root);
   const record = await store.enqueue(validFeedback, {});
 
@@ -33,7 +33,7 @@ test("claims each pending record at most once", async () => {
 });
 
 test("deduplicates retries using the client feedback id", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-feedback-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-feedback-"));
   const store = new FeedbackStore(root);
   const first = await store.enqueue(validFeedback, {});
   const retry = await store.enqueue(validFeedback, {});
@@ -42,7 +42,7 @@ test("deduplicates retries using the client feedback id", async () => {
 });
 
 test("appends structured logs and completes a record atomically", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-feedback-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-feedback-"));
   const store = new FeedbackStore(root);
   const record = await store.enqueue(validFeedback, {});
   await store.claimNext();

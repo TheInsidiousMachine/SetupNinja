@@ -9,7 +9,7 @@ import { buildWorkerPrompt, processNext } from "../src/worker.mjs";
 import { validFeedback } from "./fixtures.mjs";
 
 async function queuedStore() {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-worker-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-worker-"));
   const store = new FeedbackStore(root);
   const record = await store.enqueue(validFeedback, {});
   return { root, store, record };
@@ -138,7 +138,7 @@ test("fixed worker prompt references untrusted data without embedding it", () =>
 });
 
 test("holds toolpath feedback instead of dispatching it", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-worker-risk-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-worker-risk-"));
   const store = new FeedbackStore(root);
   const record = await store.enqueue({ ...validFeedback, id: "feedback-risk", category: "toolpath" }, {});
   let dispatches = 0;

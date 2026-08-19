@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquare, X } from "lucide-react";
+import { Download, MessageSquare, Play, X } from "lucide-react";
 import { MACHINES, MATERIALS } from "../machine/catalog";
 import { loadTools, resetTools, saveTools } from "../machine/toolLibrary";
 import type { ComputeTarget, JobPlan, ParametricSpec, SenseSample, Tool } from "../kernel/types";
@@ -157,6 +157,19 @@ export function App() {
   const verificationProgress = samples.length
     ? Math.round((playhead / Math.max(1, samples.length - 1)) * 100)
     : 0;
+  const reviewCount = Object.values(safetyChecks).filter(Boolean).length;
+  const nextStep =
+    status === "planning"
+      ? "Planning the current job"
+      : status === "running"
+        ? `Checking motion ${verificationProgress}%`
+        : status === "done" && !reviewComplete
+          ? `Confirm shop review ${reviewCount}/4`
+          : canExport
+            ? "Ready to export proof program"
+            : plan
+              ? "Run checks before export"
+              : "Choose a job source";
 
   function invalidateVerification() {
     setSafetyChecks(EMPTY_SAFETY_CHECKS);
@@ -392,12 +405,18 @@ export function App() {
       <section className="handoff-panel" aria-label="Demo status">
         <div>
           <p className="step-label">Clayton demo</p>
-          <h2>Offline CAM, Online Feedback, Signed Updates</h2>
+          <h2>Demo-ready, gated, and honest about safety</h2>
           <p>
-            Try the bracket, send one issue at a time, and install newer builds after the release gates pass.
+            Plan jobs offline, send feedback into the agent queue, and install signed updates after GitHub release gates pass.
           </p>
+          <div className="readiness-strip" aria-label="Current capabilities">
+            <span>Offline proof G-code</span>
+            <span>Signed GitHub updates</span>
+            <span>Feedback to agents</span>
+          </div>
         </div>
         <button type="button" className="btn" onClick={() => setFeedbackOpen(true)}>
+          <MessageSquare aria-hidden="true" />
           Send feedback
         </button>
       </section>
@@ -501,6 +520,10 @@ export function App() {
         <p className={`status-message ${status === "error" ? "error" : ""}`} role="status" aria-live="polite">
           {statusMessage}
         </p>
+        <div className={canExport ? "next-step ready" : "next-step"} aria-label="Next required action">
+          <span>Next</span>
+          <strong>{nextStep}</strong>
+        </div>
       </section>
 
       <SafetyReview checked={safetyChecks} onChange={onSafetyChange} disabled={status !== "done"} gcode={gcode} />
@@ -541,9 +564,11 @@ export function App() {
 
       <div className="actions" aria-label="Job actions">
         <button className="btn primary" onClick={run} disabled={status === "planning" || status === "running" || !samples.length}>
+          <Play aria-hidden="true" />
           {status === "running" ? `Checking ${verificationProgress}%` : status === "done" ? "Check again" : "Run checks"}
         </button>
         <button className="btn export" onClick={exportGcode} disabled={!canExport}>
+          <Download aria-hidden="true" />
           Export proof .nc
         </button>
         <button type="button" className="btn icon-action" aria-label="Open feedback" title="Open feedback" onClick={() => setFeedbackOpen(true)}>

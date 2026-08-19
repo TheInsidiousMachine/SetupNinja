@@ -34,15 +34,15 @@ Automatic publication is deliberately limited to these paths:
 
 Toolpath and export feedback, blocker severity, CAM/kernel changes, Android native changes, dependencies, signing, automation, and workflows are held or rejected. They do not auto-merge.
 
-For an allowed UI change, the worker installs locked dependencies, runs Vitest, the production build, Playwright, Android lint, and APK assembly, then commits, pushes, and opens a labeled PR. The current private-repository token cannot publish workflow files because it lacks GitHub's `workflow` OAuth scope, so the live worker can squash-merge that exact tested head itself. Once that scope is granted, `.github/workflows/feedback-pr-gate.yml` provides an independent duplicate gate before merge.
+For an allowed UI or docs change, the worker installs locked dependencies, runs Vitest, the production build, Playwright, Android lint, and APK assembly, then commits, pushes, and opens a labeled PR. The public GitHub repo also runs `.github/workflows/feedback-pr-gate.yml` as an independent duplicate gate before merge.
 
-After a successful local auto-merge, the worker creates the next monotonic Android version, copies the tested web bundle into packaged assets, builds the signed release, verifies the expected Android signing-certificate SHA-256, and publishes the APK plus RSA-signed update manifest to the private relay. Artifact publication happens before an atomic manifest replacement, so a phone cannot discover a release before its APK is available. Android still requires Clayton to confirm installation.
+After a tested change reaches `main`, `.github/workflows/demo-apk-release.yml` creates the next monotonic Android demo version, copies the tested web bundle into packaged assets, builds the signed release, verifies the expected Android signing-certificate SHA-256, and publishes the APK plus RSA-signed update manifest to GitHub Releases. Android still requires Clayton to confirm installation.
 
-GitHub branch protection is unavailable on the current private-repository plan. The independent Actions job is therefore the enforceable auto-merge gate. Moving the repository to a plan with rulesets should precede broadening automatic approval.
+Branch protection should be enabled before broadening automatic approval beyond low-risk UI/docs changes. Machining-affecting changes must stay human-reviewed until controller-specific posts and external verification are in place.
 
 ## Release and update
 
-`.github/workflows/demo-apk-release.yml` builds a versioned APK, signs it with protected repository secrets, verifies the signing certificate, emits a canonical RSA-SHA256-signed manifest, and publishes the bundle to GitHub Releases. A push to `codex/setupninja-demo` creates a new signed release automatically. Manual dispatch still works when an explicit version is needed.
+`.github/workflows/demo-apk-release.yml` builds a versioned APK, signs it with protected repository secrets, verifies the signing certificate, emits a canonical RSA-SHA256-signed manifest, and publishes the bundle to GitHub Releases. A push to `main` or `codex/setupninja-demo` creates a new signed release automatically. Manual dispatch still works when an explicit version is needed.
 
 The app checks its configured manifest at startup/resume. A newer signed build produces an **Install update** action. Android then shows its required package-installer confirmation. Silent APK replacement is not available to an ordinary app on stock Android.
 

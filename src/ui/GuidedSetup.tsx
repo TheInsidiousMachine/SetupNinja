@@ -108,7 +108,7 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
   return (
     <section className="guided-setup" aria-label="Guided setup">
       <div className="guided-block">
-        <p className="guided-label">1. Reference photo (optional; preview only, not saved or read)</p>
+        <p className="guided-label">1. Reference photo</p>
         <div className="guided-photo">
           {photo ? (
             <div className="photo-preview">
@@ -122,6 +122,9 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
               Take / attach photo
             </button>
           )}
+          <p className="field-help">
+            Preview only in this build. Print reading is next; the dimensions below drive the current toolpath.
+          </p>
           <input
             ref={photoRef}
             className="sr"
@@ -154,7 +157,7 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
       </div>
 
       <div className="guided-block">
-        <p className="guided-label">3. Target base geometry (mm)</p>
+        <p className="guided-label">3. Stock geometry (mm)</p>
         <div className="guided-grid">
           <NumberField name="stockWidthMm" label="Width" value={widthMm} onChange={(v) => update(setWidthMm, v)} min={1} />
           <NumberField name="stockDepthMm" label="Depth" value={depthMm} onChange={(v) => update(setDepthMm, v)} min={1} />
@@ -214,7 +217,7 @@ export function GuidedSetup({ onGenerate, onDirty, disabled }: Props) {
       ) : null}
 
       <button type="button" className="btn primary" onClick={generate} disabled={disabled}>
-        Generate from guided setup
+        Generate proof program
       </button>
     </section>
   );

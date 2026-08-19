@@ -1,6 +1,6 @@
 # SetupNinja Source Of Truth
 
-Source recording: `/home/timothybright/Projects/ClayCam/Call Clayton Bubba Allen_260818_202000.m4a`
+Source recording: the Clayton kickoff call is stored locally in this workspace and is intentionally not committed.
 
 Transcribed on 2026-08-19 with faster-whisper `small.en`.
 

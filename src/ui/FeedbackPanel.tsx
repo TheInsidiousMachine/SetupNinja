@@ -195,7 +195,7 @@ export function FeedbackPanel({
         </span>
       </header>
       <p className="feedback-intro">
-        Reports stay on this phone until they reach the configured intake. GitHub reports use your account and then enter the agent queue.
+        One clear report is enough. Include what you tried, what felt wrong, and what you expected; SetupNinja keeps it queued until it reaches the agent intake or GitHub.
       </p>
 
       <form onSubmit={submit} className="feedback-form">
@@ -240,6 +240,7 @@ export function FeedbackPanel({
             maxLength={120}
             required
             autoComplete="off"
+            placeholder="Example: Guided setup needs clearer stock origin"
             className="feedback-control"
           />
         </label>
@@ -253,6 +254,7 @@ export function FeedbackPanel({
             onChange={(event) => setDetails(event.target.value)}
             maxLength={2_000}
             rows={3}
+            placeholder="Steps, expected result, actual result, and any machine or material details."
             className="feedback-control feedback-details"
           />
         </label>
@@ -264,7 +266,7 @@ export function FeedbackPanel({
               checked={includeDiagnostics}
               onChange={(event) => setIncludeDiagnostics(event.target.checked)}
             />
-            Include app diagnostics
+            Include app diagnostics for faster fixes
           </label>
         )}
 

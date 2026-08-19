@@ -188,6 +188,23 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.readiness-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.readiness-strip span {
+  padding: 6px 8px;
+  border: 1px solid #2e5e48;
+  border-radius: 5px;
+  background: #102018;
+  color: #c7f7dd;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .section-heading {
   display: flex;
   align-items: center;
@@ -202,6 +219,13 @@ h2 {
 
 .section-heading h2 {
   overflow-wrap: anywhere;
+}
+
+.section-copy {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .state-pill {
@@ -434,6 +458,39 @@ button:not(:disabled):active {
   color: #ffd4ce;
 }
 
+.next-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.next-step span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.next-step strong {
+  min-width: 0;
+  color: var(--paper);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.next-step.ready {
+  border-color: #286e50;
+  background: #102018;
+}
+
 .guided-setup {
   display: grid;
   gap: 16px;
@@ -454,6 +511,13 @@ button:not(:disabled):active {
   object-fit: cover;
   border: 1px solid var(--line);
   border-radius: 7px;
+}
+
+.field-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .guided-grid {
@@ -832,6 +896,11 @@ button:not(:disabled):active {
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
   min-height: 50px;
   padding: 9px 13px;
   border: 1px solid var(--line);
@@ -840,6 +909,21 @@ button:not(:disabled):active {
   color: var(--paper);
   font-size: 14px;
   font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.btn svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.btn.icon-action,
+.icon-button {
+  display: inline-grid;
+  gap: 0;
 }
 
 .btn.primary {
@@ -888,10 +972,29 @@ button:not(:disabled):active {
   }
 
   .actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
     margin-right: -12px;
     margin-left: -12px;
     padding-right: 12px;
     padding-left: 12px;
+  }
+
+  .top {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .machine-name {
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .icon-button,
+  .icon-action,
+  .btn.icon-action {
+    width: 44px;
+    min-width: 44px;
   }
 
   .mode-tabs button,
@@ -914,6 +1017,23 @@ button:not(:disabled):active {
   .tool-library-head {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .handoff-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .handoff-panel > .btn {
+    width: 100%;
+  }
+
+  .next-step {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .next-step strong {
+    text-align: left;
   }
 }
 

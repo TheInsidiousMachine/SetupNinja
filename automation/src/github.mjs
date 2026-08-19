@@ -47,7 +47,7 @@ export class GitHubIssueClient {
         accept: "application/vnd.github+json",
         authorization: `Bearer ${this.token}`,
         "content-type": "application/json",
-        "user-agent": "claycam-feedback-worker",
+        "user-agent": "setupninja-feedback-worker",
         "x-github-api-version": "2022-11-28",
         ...options.headers
       }

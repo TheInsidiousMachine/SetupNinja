@@ -9,7 +9,7 @@ import { FeedbackStore } from "../src/store.mjs";
 import { validFeedback } from "./fixtures.mjs";
 
 async function withRelay(run) {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-relay-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-relay-"));
   const store = new FeedbackStore(root);
   const server = createRelayServer({ store, token: "test-token", maxBodyBytes: 1024 });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -68,7 +68,7 @@ test("health is public but logs remain authenticated", async () => {
 });
 
 test("serves only the signed demo manifest and safe APK names from the release directory", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-relay-release-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-relay-release-"));
   const store = new FeedbackStore(path.join(root, "store"));
   await writeFile(path.join(root, "manifest.json"), '{"schemaVersion":1}\n');
   await writeFile(path.join(root, "setupninja-demo-2.apk"), "apk bytes");
@@ -88,7 +88,7 @@ test("serves only the signed demo manifest and safe APK names from the release d
 });
 
 test("allows only explicitly configured WebView origins", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-relay-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-relay-"));
   const store = new FeedbackStore(root);
   const server = createRelayServer({
     store,

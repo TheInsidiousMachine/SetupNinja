@@ -33,6 +33,9 @@ export function SafetyReview({
         <div>
           <p className="step-label">3 · Shop review</p>
           <h2 id="safety-title">Confirm before export</h2>
+          <p className="section-copy">
+            Export unlocks only after these operator checks are acknowledged.
+          </p>
         </div>
         <span className={disabled ? "state-pill pending" : "state-pill ready"}>
           {disabled ? "Run checks first" : "Ready to review"}
@@ -54,8 +57,8 @@ export function SafetyReview({
       </div>
 
       <p className="proof-limit">
-        These checks do not validate controller dialect, tool reach, workholding, or machine clearance.
-        Controller simulation and operator review are required.
+        Proof programs are for inspection and simulation. They do not validate controller dialect, tool reach,
+        workholding, or machine clearance. Controller simulation and operator review are required.
       </p>
 
       <details className="program-preview">
