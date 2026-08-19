@@ -1,9 +1,9 @@
 {
-  "name": "claycam",
+  "name": "setupninja",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Adaptive CAM that runs on the controller. Drop a part, the machine figures out the rest.",
+  "description": "Phone-first setup assistant for deterministic, controller-ready G-code.",
   "scripts": {
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",

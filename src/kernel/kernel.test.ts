@@ -8,7 +8,7 @@ import { planDemo } from "./plan";
 import { encodeBinaryStl, parseStl } from "./stl";
 import { generateToolpaths } from "./toolpath";
 
-describe("Clayton bracket", () => {
+describe("demo bracket", () => {
   it("is 6 mm on the flange and 18 mm on the boss", () => {
     expect(sampleBracket(8, 8)).toBe(BRACKET.base);
     expect(sampleBracket(48, 32)).toBe(BRACKET.pocketFloor);

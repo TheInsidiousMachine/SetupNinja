@@ -17,7 +17,7 @@ export function App() {
   const [plan, setPlan] = useState<JobPlan | null>(null);
   const [samples, setSamples] = useState<SenseSample[]>([]);
   const [playhead, setPlayhead] = useState(0);
-  const [partLabel, setPartLabel] = useState("Clayton bracket");
+  const [partLabel, setPartLabel] = useState("Demo bracket");
   const fileRef = useRef<HTMLInputElement>(null);
   const runRef = useRef<number | null>(null);
   const stlRef = useRef<{ name: string; buffer: ArrayBuffer } | null>(null);
@@ -142,15 +142,15 @@ export function App() {
     <div className="app">
       <header className="top">
         <div>
-          <p className="eyebrow">On-machine CAM</p>
-          <h1>ClayCam</h1>
+          <p className="eyebrow">Print to verified G-code</p>
+          <h1>SetupNinja</h1>
         </div>
         <p className="machine-name">{machine.name}</p>
       </header>
 
       <MachineView plan={plan} samples={samples} playhead={playhead} />
 
-      <section className="gauges" aria-label="Live cut">
+      <section className="gauges" aria-label="Verified cut math">
         <Gauge label="Load" value={sample ? sample.load : 0} tone={tone(sample?.load ?? 0, 0.7, 1)} />
         <Gauge
           label="Vibe"
@@ -158,10 +158,10 @@ export function App() {
           tone={tone(sample?.chatterRisk ?? 0, 0.45, 0.7)}
         />
         <div className="gauge gauge-num">
-          <span className="gauge-label">Feed</span>
+          <span className="gauge-label">Post</span>
           <strong>{sample ? feed(sample.feedMmMin) : "—"}</strong>
           <span className="gauge-sub">
-            {sample ? `${pct(sample.feedOverride)} override` : "waiting"}
+            {sample ? `${pct(sample.feedOverride)} verified` : "waiting"}
           </span>
         </div>
       </section>
@@ -205,16 +205,16 @@ export function App() {
 
       {compute === "cloud" ? (
         <p className="note">
-          Cloud is the metered shop path. This demo still solves the job on-device so you can
-          tap Run with no account.
+          Cloud or a Linux tunnel can help with print reading later. This demo still verifies
+          the deterministic kernel on-device.
         </p>
       ) : (
         <p className="note">
           {status === "planning"
-            ? "Planning toolpaths from the height map…"
+            ? "Solving deterministic toolpaths from setup data..."
             : status === "error"
               ? error
-              : "Each flute engagement sets feed. Vibration and load pull it back."}
+              : "AI can read the job. Deterministic math owns the toolpath."}
         </p>
       )}
 
@@ -224,10 +224,10 @@ export function App() {
           onClick={run}
           disabled={status === "planning" || status === "running" || !samples.length}
         >
-          {status === "running" ? "Cutting…" : status === "done" ? "Run again" : "Run cut"}
+          {status === "running" ? "Verifying..." : status === "done" ? "Verify again" : "Verify G-code"}
         </button>
         <button className="btn" onClick={() => fileRef.current?.click()} disabled={status === "running"}>
-          Load STL
+          Load model
         </button>
         <input
           ref={fileRef}

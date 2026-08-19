@@ -1,11 +1,11 @@
 {
-  "name": "ClayCam",
-  "short_name": "ClayCam",
-  "description": "Adaptive CAM on the controller.",
+  "name": "SetupNinja",
+  "short_name": "SetupNinja",
+  "description": "Phone-first deterministic G-code setup assistant.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#120f0c",
-  "theme_color": "#14110e",
+  "background_color": "#0b0f0d",
+  "theme_color": "#0f1412",
   "icons": [
     {
       "src": "./favicon.svg",

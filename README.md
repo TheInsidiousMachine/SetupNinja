@@ -1,52 +1,43 @@
-<p align="center">
-  <img src="docs/github/social-preview.png" alt="ClayCam. Drop a part. The controller cuts it." width="100%" />
-</p>
+# SetupNinja
 
-# ClayCam
+Phone-first setup software for turning a print, stock measurements, and available tools into deterministic, controller-ready G-code.
 
-Adaptive CAM on the controller. You give it a 3D part. It reads stock, tools, and each flute as it cuts.
+SetupNinja is built around a simple shop promise: take a picture of the print, enter the minimum missing setup details, verify the math, and get a program onto the machine from the phone.
 
-<p align="center">
-  <a href="https://theinsidiousmachine.github.io/ClayCam/">
-    <img src="docs/github/open-demo.png" alt="Open live demo" width="100%" />
-  </a>
-</p>
+## Source Of Truth
 
-<p align="center">
-  <img src="docs/github/phone-ready.png" alt="ClayCam ready to cut the Clayton bracket" width="48%" />
-  <img src="docs/github/phone-cut.png" alt="Live cut with load, vibration, and feed override" width="48%" />
-</p>
+The product direction now comes from the recorded call at:
 
-Tap **Open live demo** on your phone. Then tap **Run cut**. Drag the viewport to orbit. Pinch to zoom.
+`/home/timothybright/Projects/ClayCam/Call Clayton Bubba Allen_260818_202000.m4a`
 
-## The idea
+The transcript, product brief, and non-negotiables are captured in [docs/source-of-truth.md](docs/source-of-truth.md).
 
-Shop CAM still means: freeze a program at a desk, carry it to the mill, then twist feeds until the part is right.
+## What SetupNinja Must Do
 
-ClayCam flips that. The controller holds the model. It knows the blank, the magazine, and the cut that is happening now. Load and vibration pull feed back. Light engagement lets it go. Home-appliance simple, like a metal 3D printer: CAD in, part out.
+- Read a print/photo and ask for only the dimensions, stock, machine, and tool details it still needs.
+- Generate G-code with best-practice feeds, speeds, compensation, and cut strategy.
+- Keep toolpaths and safety checks deterministic, auditable, and testable.
+- Edit generated G-code or existing complex G-code posted from CAM software.
+- Recalculate changed parameters correctly, especially tool compensation and cut geometry.
+- Move programs from an Android phone to CNC controls through phone storage, USB-style transfer, or compact flash adapters.
+- Reduce setup time on the shop floor without hiding dangerous assumptions.
 
-- **On the machine** — toolpaths live on the controller, not a USB stick
-- **Per flute** — each engagement of tooth into material sets feed
-- **Universal plug-in** — knee mill, hobby router, and small VMC profiles in this demo
-- **Phone / local / cloud** — this kernel runs in a worker on the device you opened. Cloud is the metered shop path later
-- **CAD in** — ships with the Clayton bracket, or load an STL
+## Current Demo
 
-## Real in this repo
+This repo currently ships a deterministic TypeScript machining kernel and phone-friendly React demo. It includes:
 
 | Built | Next |
 | --- | --- |
-| Height-map CAM, raster rough + finish | Servo / GRBL / LinuxCNC I/O |
-| Adaptive feed from engagement, spindle load, chatter model | Real accelerometers and current shunts |
-| STL parser, three machines, 6061 / 4140 / Delrin | Probe the magazine, guess the stock |
-| Phone-first controller UI | Snapdragon box, shop PC, tokened cloud |
+| Height-map CAM, raster roughing, and finishing | Print/photo extraction workflow |
+| STL parser and demo model import | G-code import, edit, and repost |
+| Machine, material, and tool catalogs | Android storage/USB/compact flash handoff |
+| Feed/load/chatter simulation | Explicit safety checklist before post |
 
-`src/kernel` plans the job. `src/adaptive` is the sense → override loop. No placeholder modules.
+`src/kernel` plans the job. `src/adaptive` simulates feedback. The UI now presents that engine as SetupNinja's first verified-G-code demo path.
 
-## Run locally
+## Run Locally
 
 ```bash
-git clone https://github.com/TheInsidiousMachine/ClayCam.git
-cd ClayCam
 npm install
 npm test
 npm run dev
@@ -61,14 +52,10 @@ Vite prints a LAN URL. Open that on a phone on the same Wi-Fi.
 <details>
 <summary>GitHub Settings clicks (once, after push)</summary>
 
-**Description:** `Adaptive CAM on the controller. Drop a part. The machine figures out the rest.`
+**Description:** `Phone-first setup assistant for deterministic, controller-ready G-code.`
 
-**Homepage:** `https://theinsidiousmachine.github.io/ClayCam/`
+**Homepage:** `https://theinsidiousmachine.github.io/SetupNinja/`
 
-**Topics:** `cam` `cnc` `adaptive-machining` `manufacturing` `typescript` `threejs`
-
-**Social preview:** Settings → General → Social preview → upload [`docs/github/social-preview.png`](docs/github/social-preview.png) (1280×640).
-
-**Pages:** Settings → Pages → Deploy from a branch → `main` / `/docs`. This repo already has the built demo in `docs/`. Private repos on GitHub Free cannot publish Pages until the repo is public or the account has Pro. The README and screenshots still work in the GitHub Android app either way.
+**Topics:** `gcode` `cnc` `cam` `machining` `android` `typescript`
 
 </details>

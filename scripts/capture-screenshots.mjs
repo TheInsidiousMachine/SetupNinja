@@ -38,7 +38,7 @@ try {
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
   await page.waitForFunction(() => {
     const buttons = [...document.querySelectorAll("button")];
-    const run = buttons.find((b) => (b.textContent ?? "").includes("Run cut"));
+    const run = buttons.find((b) => (b.textContent ?? "").includes("Verify G-code"));
     return Boolean(run && !run.disabled);
   });
   await page.waitForTimeout(1500);
@@ -47,7 +47,7 @@ try {
     type: "png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Run cut" }).click();
+  await page.getByRole("button", { name: "Verify G-code" }).click();
   await page.waitForTimeout(5200);
   await page.screenshot({
     path: path.join(outDir, "phone-cut.png"),

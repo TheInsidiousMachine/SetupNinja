@@ -13,12 +13,12 @@ function quad(a: Vec3, b: Vec3, c: Vec3, d: Vec3): Triangle[] {
 }
 
 /**
- * Clayton bracket: 96×64 mm flange, 6 mm thick, with a 12 mm boss,
+ * Setup demo bracket: 96×64 mm flange, 6 mm thick, with a 12 mm boss,
  * a rectangular pocket, and two through-holes. Built as an explicit
  * triangle mesh so STL import and the demo share one rasterizer.
  */
 export const BRACKET = {
-  name: "Clayton bracket",
+  name: "Setup demo bracket",
   width: 96,
   depth: 64,
   base: 6,

@@ -1,12 +1,12 @@
 :root {
   color-scheme: dark;
-  --bg: #120f0c;
-  --panel: #1b1713;
-  --paper: #efe6d8;
-  --muted: #b7aa9a;
-  --clay: #d0602a;
-  --clay-deep: #9a3f16;
-  --line: #3a332c;
+  --bg: #0b0f0d;
+  --panel: #111815;
+  --paper: #edf7f1;
+  --muted: #9db1a7;
+  --accent: #39d98a;
+  --accent-deep: #0b7f55;
+  --line: #26312c;
   --ok: #7dcaa0;
   --warn: #e0a45a;
   --bad: #e07060;
@@ -59,7 +59,7 @@ body {
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--clay);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -68,7 +68,7 @@ h1 {
   font-family: var(--display);
   font-size: 34px;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   line-height: 1;
 }
 
@@ -83,7 +83,7 @@ h1 {
   position: relative;
   border-radius: 18px;
   overflow: hidden;
-  background: #14110e;
+  background: #0f1412;
   border: 1px solid var(--line);
   min-height: 220px;
   touch-action: none;
@@ -129,7 +129,7 @@ h1 {
 .bar {
   height: 8px;
   border-radius: 99px;
-  background: #2a241e;
+  background: #1d2622;
   overflow: hidden;
 }
 
@@ -158,7 +158,7 @@ h1 {
   font-size: 12px;
   padding: 8px 10px;
   border-radius: 999px;
-  background: #241f1a;
+  background: #17211d;
   border: 1px solid var(--line);
   color: var(--paper);
 }
@@ -192,16 +192,16 @@ h1 {
   min-height: 48px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #1a1612;
+  background: #111815;
   color: var(--paper);
   font: 500 13px var(--ui);
   padding: 8px 6px;
 }
 
 .seg button.on {
-  background: #2a2018;
-  border-color: var(--clay);
-  color: #f3d7c4;
+  background: #10281d;
+  border-color: var(--accent);
+  color: #d8ffea;
 }
 
 .note {
@@ -222,15 +222,15 @@ h1 {
   min-height: 56px;
   border-radius: 16px;
   border: 1px solid var(--line);
-  background: #241f1a;
+  background: #17211d;
   color: var(--paper);
   font: 600 16px var(--ui);
 }
 
 .btn.primary {
-  background: var(--clay);
-  border-color: var(--clay-deep);
-  color: #fff6ee;
+  background: var(--accent);
+  border-color: var(--accent-deep);
+  color: #05120c;
 }
 
 .btn:disabled {

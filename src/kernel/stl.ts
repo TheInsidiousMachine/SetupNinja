@@ -17,7 +17,7 @@ export function encodeBinaryStl(mesh: Mesh): ArrayBuffer {
   const count = mesh.triangles.length;
   const buf = new ArrayBuffer(84 + count * 50);
   const view = new DataView(buf);
-  const header = "ClayCam STL";
+  const header = "SetupNinja STL";
   for (let i = 0; i < header.length; i++) view.setUint8(i, header.charCodeAt(i));
   view.setUint32(80, count, true);
   let o = 84;
