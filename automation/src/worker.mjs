@@ -79,8 +79,8 @@ export async function processNext({ store, config, issueClient, worktrees, publi
       return await store.complete(record.id, { dryRun: true, planned });
     }
 
-    const issue = await issueClient.createIssue(record, config.issueLabels ?? []);
-    await store.appendLog(record.id, "info", "GitHub issue created", { issue });
+    const issue = record.source?.githubIssue ?? await issueClient.createIssue(record, config.issueLabels ?? []);
+    await store.appendLog(record.id, "info", record.source?.githubIssue ? "Using source GitHub issue" : "GitHub issue created", { issue });
     const holdReason = riskReason(record.feedback);
     if (holdReason) {
       await store.appendLog(record.id, "warn", "Dispatch held for human triage", { reason: holdReason });

@@ -66,6 +66,25 @@ export class GitHubIssueClient {
     return { number: body.number, url: body.html_url };
   }
 
+  async listFeedbackIssues(labels = ["clayton-feedback", "demo"]) {
+    const params = new URLSearchParams({
+      state: "open",
+      labels: labels.join(","),
+      per_page: "30"
+    });
+    const body = await this.request(`/repos/${this.repository}/issues?${params}`, { method: "GET" });
+    return body
+      .filter((issue) => !issue.pull_request)
+      .map((issue) => ({
+        number: issue.number,
+        url: issue.html_url,
+        title: issue.title ?? "",
+        body: issue.body ?? "",
+        createdAt: issue.created_at ?? new Date().toISOString(),
+        labels: (issue.labels ?? []).map((label) => typeof label === "string" ? label : label.name).filter(Boolean)
+      }));
+  }
+
   async addComment(issueNumber, message) {
     await this.request(`/repos/${this.repository}/issues/${issueNumber}/comments`, {
       method: "POST",

@@ -33,7 +33,13 @@ This repo currently ships a deterministic TypeScript machining kernel and phone-
 | Native Android `.nc` export and offline APK | Controller-specific posts and removable-media transfer |
 | Machine, material, and editable tool catalogs | Fixture, holder, offset, and machine-envelope models |
 | Interactive Three.js toolpath review | External RS-274 validation and supervised cut trials |
-| Offline feedback queue and gated agent workflow | Authenticated public tester distribution |
+| Offline feedback queue, GitHub feedback fallback, and gated agent workflow | Authenticated public tester distribution |
+
+Latest demo builds are published from the `codex/setupninja-demo` branch to GitHub Releases:
+
+`https://github.com/TheInsidiousMachine/ClayCam/releases/latest/download/setupninja-demo.apk`
+
+Because this repository is private, Clayton needs repository access unless the demo release feed is mirrored somewhere public.
 
 `src/kernel` plans the job. `src/adaptive` simulates feedback. The UI now presents that engine as SetupNinja's first verified-G-code demo path.
 

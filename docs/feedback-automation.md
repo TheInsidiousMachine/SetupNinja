@@ -6,13 +6,16 @@ The APK keeps the CAM workflow, viewer, tests, and export assets inside the pack
 
 The live relay-to-agent path was exercised during this smoke check.
 
-When the phone is online, it posts queued feedback to the Mahoraga host over its private Tailscale address. The relay validates and rate-limits anonymous intake, stores it durably, and keeps status/log endpoints behind an admin bearer token. The app never contains a GitHub token or agent credential.
+When the phone is online, it can post queued feedback to a configured HTTPS intake service. If no public intake service is configured, the app opens a prefilled GitHub issue form instead. The GitHub path requires Clayton to have repository issue access, but it does not put a GitHub token or agent credential inside the APK. The local worker polls open `clayton-feedback,demo` issues, imports each issue once into the same durable queue, comments that it was queued, and then runs the normal gated worker path.
+
+The old Mahoraga tailnet relay still works for local smoke tests, but it is not the Clayton distribution channel.
 
 The connected demo phone and Mahoraga are already on the same tailnet. The current endpoints are:
 
-- Feedback: `http://100.127.108.57:8877/v1/feedback`
-- Update manifest: `http://100.127.108.57:8877/v1/update/demo.json`
-- APK artifacts: `http://100.127.108.57:8877/releases/<name>.apk`
+- Local feedback relay: `http://100.127.108.57:8877/v1/feedback`
+- Clayton update manifest: `https://github.com/TheInsidiousMachine/ClayCam/releases/latest/download/manifest.json`
+- Clayton APK download: `https://github.com/TheInsidiousMachine/ClayCam/releases/latest/download/setupninja-demo.apk`
+- Clayton feedback fallback: `https://github.com/TheInsidiousMachine/ClayCam/issues/new?labels=clayton-feedback,demo`
 
 This HTTP route is still WireGuard-encrypted by Tailscale. Android permits cleartext only for the exact tailnet host. APK installation additionally requires a build-pinned RSA signature over the update manifest and a matching SHA-256. Public or LAN HTTP artifact URLs are rejected.
 
@@ -20,7 +23,7 @@ This HTTP route is still WireGuard-encrypted by Tailscale. Android permits clear
 
 ## Dispatch and approval
 
-`automation/src/worker-cli.mjs` claims one queued report, creates a private GitHub issue, creates an isolated worktree, and runs OpenCode with a fixed prompt that treats the feedback JSON as untrusted data. Commands are argv arrays executed without a shell. Secret-bearing environment variables are removed from the coding-agent process.
+`automation/src/worker-cli.mjs` imports new GitHub issue feedback, claims one queued report, reuses the source issue when present, creates an isolated worktree, and runs OpenCode with a fixed prompt that treats the feedback JSON as untrusted data. Commands are argv arrays executed without a shell. Secret-bearing environment variables are removed from the coding-agent process.
 
 Automatic publication is deliberately limited to these paths:
 
@@ -39,9 +42,11 @@ GitHub branch protection is unavailable on the current private-repository plan. 
 
 ## Release and update
 
-`.github/workflows/demo-apk-release.yml` builds a versioned APK, signs it with protected repository secrets, verifies the signing certificate, emits a canonical RSA-SHA256-signed manifest, and publishes the bundle. A public binary host, Firebase App Distribution, or the private tailnet relay must mirror the bundle because unauthenticated clients cannot download a private GitHub release.
+`.github/workflows/demo-apk-release.yml` builds a versioned APK, signs it with protected repository secrets, verifies the signing certificate, emits a canonical RSA-SHA256-signed manifest, and publishes the bundle to GitHub Releases. A push to `codex/setupninja-demo` creates a new signed release automatically. Manual dispatch still works when an explicit version is needed.
 
 The app checks its configured manifest at startup/resume. A newer signed build produces an **Install update** action. Android then shows its required package-installer confirmation. Silent APK replacement is not available to an ordinary app on stock Android.
+
+The repository is currently private. For Clayton to download directly from GitHub, either invite him to the repository or move the demo release feed to a public repository/public binary host. Do not embed a private GitHub token in the APK.
 
 ## Local operations
 

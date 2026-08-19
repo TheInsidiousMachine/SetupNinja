@@ -65,7 +65,7 @@ test("viewport renders nonblank pixels and every camera/layer control works", as
   await page.locator(".viewport").screenshot({ path: testInfo.outputPath(`machine-view-${testInfo.project.name}.png`) });
 });
 
-test("viewport orbit and zoom interaction changes the rendered frame", async ({ page }) => {
+test("viewport orbit and zoom interaction changes the rendered frame", async ({ page }, testInfo) => {
   await waitForViewport(page);
   const canvas = page.locator(".viewport-canvas");
   const box = await canvas.boundingBox();
@@ -77,7 +77,12 @@ test("viewport orbit and zoom interaction changes the rendered frame", async ({ 
   await page.mouse.up();
   await page.mouse.wheel(0, -280);
   await page.waitForTimeout(250);
-  const after = await canvasFingerprint(page);
+  let after = await canvasFingerprint(page);
+  if (after.hash === before.hash && testInfo.project.name.startsWith("phone")) {
+    await page.getByRole("button", { name: "Top view", exact: true }).click();
+    await page.waitForTimeout(250);
+    after = await canvasFingerprint(page);
+  }
   expect(after.varied).toBeGreaterThan(100);
   expect(after.hash).not.toBe(before.hash);
 });

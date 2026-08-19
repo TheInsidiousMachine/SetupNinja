@@ -38,6 +38,11 @@ android {
         )
         buildConfigField(
             "String",
+            "FEEDBACK_ISSUE_URL",
+            quotedBuildConfig(System.getenv("SETUPNINJA_FEEDBACK_ISSUE_URL").orEmpty()),
+        )
+        buildConfigField(
+            "String",
             "UPDATE_PUBLIC_KEY",
             quotedBuildConfig(System.getenv("SETUPNINJA_UPDATE_PUBLIC_KEY").orEmpty()),
         )

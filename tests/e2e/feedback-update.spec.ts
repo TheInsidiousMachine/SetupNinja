@@ -28,6 +28,48 @@ test("feedback is fast, persists offline, and can be shared", async ({ page }) =
   await expect(page.getByRole("dialog").getByText("Top view needs clearer origin labels")).toBeVisible();
 });
 
+test("GitHub issue fallback opens a prefilled agent intake report", async ({ page }) => {
+  await page.addInitScript(() => {
+    const openedUrls: string[] = [];
+    Object.assign(window, {
+      __openedUrls: openedUrls,
+      AndroidUsb: {
+        appInfo: () => JSON.stringify({
+          versionCode: 1,
+          versionName: "0.2.0",
+          feedbackEndpoint: "",
+          updateManifestUrl: "",
+          feedbackIssueUrl: "https://github.com/TheInsidiousMachine/ClayCam/issues/new?labels=clayton-feedback,demo",
+        }),
+        openExternalUrl: (url: string) => {
+          openedUrls.push(url);
+          return JSON.stringify({ ok: true });
+        },
+      },
+    });
+  });
+
+  await page.goto("/");
+  await waitForReady(page);
+  await page.getByRole("button", { name: "Send feedback" }).click();
+  const dialog = page.getByRole("dialog", { name: "Send feedback" });
+  await dialog.getByLabel("Category").selectOption("workflow");
+  await dialog.getByLabel("Severity").selectOption("normal");
+  await dialog.getByLabel("Summary").fill("Guided setup needs a smaller first screen");
+  await dialog.getByLabel("Details").fill("Show the photo and stock fields before advanced tool controls.");
+  await dialog.getByRole("button", { name: "Save feedback" }).click();
+  await dialog.getByRole("button", { name: "Open GitHub issue" }).click();
+
+  const urls = await page.evaluate(() => (window as Window & { __openedUrls: string[] }).__openedUrls);
+  expect(urls).toHaveLength(1);
+  const url = new URL(urls[0]);
+  expect(url.hostname).toBe("github.com");
+  expect(url.pathname).toBe("/TheInsidiousMachine/ClayCam/issues/new");
+  expect(url.searchParams.get("title")).toContain("Guided setup needs a smaller first screen");
+  expect(url.searchParams.get("body")).toContain("Show the photo and stock fields");
+  expect(url.searchParams.get("labels")).toContain("feedback-workflow");
+});
+
 test("a configured relay receives feedback and a newer gated build can start installation", async ({ page }) => {
   const feedbackBodies: unknown[] = [];
   await page.addInitScript(() => {
@@ -40,6 +82,7 @@ test("a configured relay receives feedback and a newer gated build can start ins
           versionName: "0.1.0",
           feedbackEndpoint: "https://relay.example.test/v1/feedback",
           updateManifestUrl: "https://relay.example.test/v1/update/demo.json",
+          feedbackIssueUrl: "https://github.com/TheInsidiousMachine/ClayCam/issues/new",
         }),
         installUpdate: (...args: unknown[]) => {
           installCalls.push(args);

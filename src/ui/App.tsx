@@ -38,6 +38,7 @@ declare global {
       saveProgram(fileName: string, contents: string): string;
       appInfo?(): string;
       shareFeedback?(subject: string, body: string): string;
+      openExternalUrl?(url: string): string;
       installUpdate?(apkUrl: string, sha256: string, versionCode: number, versionName: string, signature: string): string;
       updateStatus?(): string;
     };
@@ -349,6 +350,15 @@ export function App() {
     throw new Error("Sharing is unavailable on this device. The report remains queued.");
   }
 
+  function openFeedbackIssue(url: string) {
+    if (window.AndroidUsb?.openExternalUrl) {
+      const result = JSON.parse(window.AndroidUsb.openExternalUrl(url)) as { ok?: boolean; message?: string };
+      if (!result.ok) throw new Error(result.message || "Android could not open GitHub.");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   const statusMessage =
     notice ||
     (status === "planning"
@@ -378,6 +388,21 @@ export function App() {
         <li className={status === "running" ? "active" : status === "done" ? "complete" : ""}>Checks</li>
         <li className={canExport ? "active" : ""}>Export</li>
       </ol>
+
+      <section className="handoff-panel" aria-label="Demo status">
+        <div>
+          <p className="step-label">Clayton demo</p>
+          <h2>Offline CAM, Online Feedback, Signed Updates</h2>
+          <p>
+            Try the bracket, send one issue at a time, and install newer builds after the release gates pass.
+          </p>
+        </div>
+        <button type="button" className="btn" onClick={() => setFeedbackOpen(true)}>
+          Send feedback
+        </button>
+      </section>
+
+      <UpdatePanel />
 
       <section className="setup-section" aria-labelledby="setup-title">
         <div className="section-heading">
@@ -480,8 +505,6 @@ export function App() {
 
       <SafetyReview checked={safetyChecks} onChange={onSafetyChange} disabled={status !== "done"} gcode={gcode} />
 
-      <UpdatePanel />
-
       {feedbackOpen ? (
         <div className="feedback-dialog-backdrop" role="presentation" onMouseDown={() => setFeedbackOpen(false)}>
           <section
@@ -497,6 +520,7 @@ export function App() {
             <FeedbackPanel
               appVersion={appInfo.versionName}
               endpoint={appInfo.feedbackEndpoint || undefined}
+              issueUrl={appInfo.feedbackIssueUrl || undefined}
               diagnosticContext={() => ({
                 screen: "job-review",
                 status,
@@ -509,6 +533,7 @@ export function App() {
                 viewport: `${window.innerWidth}x${window.innerHeight}`,
               })}
               onShareFallback={shareFeedback}
+              onOpenIssue={openFeedbackIssue}
             />
           </section>
         </div>
@@ -521,7 +546,7 @@ export function App() {
         <button className="btn export" onClick={exportGcode} disabled={!canExport}>
           Export proof .nc
         </button>
-        <button type="button" className="btn icon-action" aria-label="Send feedback" title="Send feedback" onClick={() => setFeedbackOpen(true)}>
+        <button type="button" className="btn icon-action" aria-label="Open feedback" title="Open feedback" onClick={() => setFeedbackOpen(true)}>
           <MessageSquare aria-hidden="true" />
         </button>
       </div>

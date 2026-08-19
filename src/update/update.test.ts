@@ -6,6 +6,7 @@ const app: AppInfo = {
   versionName: "0.1.0",
   feedbackEndpoint: "",
   updateManifestUrl: "https://updates.example.test/demo.json",
+  feedbackIssueUrl: "",
 };
 
 describe("update manifests", () => {

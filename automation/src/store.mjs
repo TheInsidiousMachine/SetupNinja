@@ -44,7 +44,10 @@ export class FeedbackStore {
       id,
       state: "queued",
       acceptedAt: new Date().toISOString(),
-      source: { remoteAddress: source.remoteAddress ?? null },
+      source: {
+        remoteAddress: source.remoteAddress ?? null,
+        ...(source.githubIssue ? { githubIssue: source.githubIssue } : {})
+      },
       feedback
     };
     await atomicWrite(this.queuePath("pending", id), record);

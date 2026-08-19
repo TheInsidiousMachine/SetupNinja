@@ -3,6 +3,7 @@ export type AppInfo = {
   versionName: string;
   feedbackEndpoint: string;
   updateManifestUrl: string;
+  feedbackIssueUrl: string;
 };
 
 export type UpdateManifest = {
@@ -33,6 +34,7 @@ const FALLBACK_APP_INFO: AppInfo = {
   versionName: "web",
   feedbackEndpoint: import.meta.env.VITE_SETUPNINJA_FEEDBACK_URL ?? "",
   updateManifestUrl: import.meta.env.VITE_SETUPNINJA_UPDATE_URL ?? "",
+  feedbackIssueUrl: import.meta.env.VITE_SETUPNINJA_FEEDBACK_ISSUE_URL ?? "",
 };
 
 function nativeBridge(): NativeBridge | undefined {
@@ -49,6 +51,7 @@ export function readAppInfo(): AppInfo {
       versionName: typeof value.versionName === "string" ? value.versionName : FALLBACK_APP_INFO.versionName,
       feedbackEndpoint: typeof value.feedbackEndpoint === "string" ? value.feedbackEndpoint : "",
       updateManifestUrl: typeof value.updateManifestUrl === "string" ? value.updateManifestUrl : "",
+      feedbackIssueUrl: typeof value.feedbackIssueUrl === "string" ? value.feedbackIssueUrl : "",
     };
   } catch {
     return FALLBACK_APP_INFO;

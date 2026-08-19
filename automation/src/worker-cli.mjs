@@ -2,6 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { loadWorkerConfig } from "./config.mjs";
 import { GitHubIssueClient } from "./github.mjs";
+import { importGithubFeedbackIssues } from "./issue-intake.mjs";
 import { LocalReleasePublisher } from "./local-release.mjs";
 import { FeedbackStore } from "./store.mjs";
 import { processNext } from "./worker.mjs";
@@ -36,6 +37,9 @@ process.once("SIGINT", () => { stopping = true; });
 process.once("SIGTERM", () => { stopping = true; });
 
 do {
+  if (!config.dryRun && issueClient) {
+    await importGithubFeedbackIssues({ issueClient, store, labels: config.issueLabels });
+  }
   const result = await processNext({ store, config, issueClient, worktrees, publisher, releasePublisher });
   if (result) process.stdout.write(`${JSON.stringify({ id: result.id, state: result.state })}\n`);
   if (once) break;

@@ -32,7 +32,30 @@ class UsbBridge(private val context: Context) {
         .put("versionName", BuildConfig.VERSION_NAME)
         .put("feedbackEndpoint", BuildConfig.FEEDBACK_ENDPOINT)
         .put("updateManifestUrl", BuildConfig.UPDATE_MANIFEST_URL)
+        .put("feedbackIssueUrl", BuildConfig.FEEDBACK_ISSUE_URL)
         .toString()
+
+    /** Opens the configured GitHub issue form without exposing any app secret to JavaScript. */
+    @JavascriptInterface
+    fun openExternalUrl(url: String?): String {
+        val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
+        val trusted = uri != null &&
+            uri.scheme == "https" &&
+            uri.host == "github.com" &&
+            uri.path.orEmpty().startsWith("/TheInsidiousMachine/ClayCam/issues/new")
+        if (!trusted) {
+            return errorJson("UNTRUSTED_URL", "Only the configured GitHub feedback page can be opened.")
+        }
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                if (context !is android.app.Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            JSONObject().put("ok", true).put("method", "BROWSER").toString()
+        } catch (error: Exception) {
+            errorJson("OPEN_FAILED", "Android could not open the GitHub feedback page.", error.message)
+        }
+    }
 
     /** Opens Android's share sheet so feedback can still be submitted without a configured relay. */
     @JavascriptInterface

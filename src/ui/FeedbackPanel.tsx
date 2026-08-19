@@ -12,8 +12,10 @@ import {
 export interface FeedbackPanelProps {
   appVersion: string;
   endpoint?: string;
+  issueUrl?: string;
   diagnosticContext?: Record<string, unknown> | (() => Record<string, unknown>);
   onShareFallback?: (payload: FeedbackPayload) => void | Promise<void>;
+  onOpenIssue?: (url: string) => void | Promise<void>;
   storageKey?: string;
   className?: string;
   title?: string;
@@ -45,11 +47,46 @@ function feedbackState(record: FeedbackQueueRecord) {
   return record.lastError ? "Needs retry" : "Pending";
 }
 
+function formatFeedbackBody(payload: FeedbackPayload) {
+  return [
+    `Category: ${payload.category}`,
+    `Severity: ${payload.severity}`,
+    `App version: ${payload.appVersion}`,
+    `Report ID: ${payload.id}`,
+    "",
+    "Summary",
+    payload.summary,
+    "",
+    "Details",
+    payload.details || "(No extra details supplied.)",
+    payload.diagnostics ? "\nDiagnostics\n```json\n" + JSON.stringify(payload.diagnostics, null, 2) + "\n```" : "",
+  ].filter(Boolean).join("\n");
+}
+
+function feedbackIssueUrl(baseUrl: string, payload: FeedbackPayload) {
+  const url = new URL(baseUrl);
+  url.searchParams.set("title", `[${payload.severity}] ${payload.summary}`);
+  url.searchParams.set("body", formatFeedbackBody(payload));
+  const labels = new Set(
+    (url.searchParams.get("labels") ?? "")
+      .split(",")
+      .map((label) => label.trim())
+      .filter(Boolean),
+  );
+  labels.add("clayton-feedback");
+  labels.add("demo");
+  labels.add(`feedback-${payload.category}`);
+  url.searchParams.set("labels", [...labels].join(","));
+  return url.toString();
+}
+
 export function FeedbackPanel({
   appVersion,
   endpoint,
+  issueUrl,
   diagnosticContext,
   onShareFallback,
+  onOpenIssue,
   storageKey,
   className,
   title = "Send feedback",
@@ -138,6 +175,17 @@ export function FeedbackPanel({
     }
   }
 
+  async function openIssue(payload: FeedbackPayload) {
+    if (!issueUrl || !onOpenIssue) return;
+    setError("");
+    try {
+      await onOpenIssue(feedbackIssueUrl(issueUrl, payload));
+      setMessage("GitHub feedback page opened. Submit it there to dispatch the agent workflow.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "GitHub feedback could not be opened.");
+    }
+  }
+
   return (
     <section className={["feedback-panel", className].filter(Boolean).join(" ")} aria-labelledby={`${prefix}-title`}>
       <header className="feedback-head">
@@ -146,6 +194,9 @@ export function FeedbackPanel({
           {pending.length} pending · {sentCount} sent
         </span>
       </header>
+      <p className="feedback-intro">
+        Reports stay on this phone until they reach the configured intake. GitHub reports use your account and then enter the agent queue.
+      </p>
 
       <form onSubmit={submit} className="feedback-form">
         <div className="feedback-grid">
@@ -261,6 +312,11 @@ export function FeedbackPanel({
                 {onShareFallback && (
                   <button type="button" onClick={() => void share(record.payload)} className="btn small">
                     Share
+                  </button>
+                )}
+                {issueUrl && onOpenIssue && (
+                  <button type="button" onClick={() => void openIssue(record.payload)} className="btn small">
+                    Open GitHub issue
                   </button>
                 )}
               </div>

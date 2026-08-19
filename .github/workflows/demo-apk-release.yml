@@ -1,23 +1,26 @@
 name: Gated demo APK release
 
 on:
+  push:
+    branches:
+      - codex/setupninja-demo
   workflow_dispatch:
     inputs:
       version_code:
         description: Monotonically increasing Android version code
-        required: true
+        required: false
         type: string
       version_name:
         description: Demo version name, for example 0.2.0-demo.2
-        required: true
+        required: false
         type: string
       notes:
         description: Short release notes
-        required: true
+        required: false
         type: string
       confirmation:
         description: Type RELEASE CLAYTON DEMO
-        required: true
+        required: false
         type: string
 
 permissions:
@@ -28,17 +31,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  release-inputs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version_code: ${{ steps.values.outputs.version_code }}
+      version_name: ${{ steps.values.outputs.version_name }}
+      notes: ${{ steps.values.outputs.notes }}
+      update_url: ${{ steps.values.outputs.update_url }}
+      feedback_issue_url: ${{ steps.values.outputs.feedback_issue_url }}
+    steps:
+      - name: Resolve release inputs
+        id: values
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_CONFIRMATION: ${{ inputs.confirmation }}
+          INPUT_VERSION_CODE: ${{ inputs.version_code }}
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+          INPUT_NOTES: ${{ inputs.notes }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            test "$INPUT_CONFIRMATION" = "RELEASE CLAYTON DEMO"
+            VERSION_CODE="$INPUT_VERSION_CODE"
+            VERSION_NAME="$INPUT_VERSION_NAME"
+            NOTES="$INPUT_NOTES"
+            test -n "$VERSION_CODE"
+            test -n "$VERSION_NAME"
+            test -n "$NOTES"
+          else
+            VERSION_CODE="$((1000 + RUN_NUMBER))"
+            VERSION_NAME="0.2.0-demo.${VERSION_CODE}"
+            NOTES="Automatic demo build from ${SHA:0:12}"
+          fi
+          test "$VERSION_CODE" -gt 0
+          {
+            echo "version_code=$VERSION_CODE"
+            echo "version_name=$VERSION_NAME"
+            echo "update_url=https://github.com/${REPOSITORY}/releases/latest/download/manifest.json"
+            echo "feedback_issue_url=https://github.com/${REPOSITORY}/issues/new?labels=clayton-feedback,demo"
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
   build-unsigned:
+    needs: release-inputs
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Require explicit confirmation
-        env:
-          CONFIRMATION: ${{ inputs.confirmation }}
-          VERSION_CODE: ${{ inputs.version_code }}
-        run: |
-          test "$CONFIRMATION" = "RELEASE CLAYTON DEMO"
-          test "$VERSION_CODE" -gt 0
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -60,9 +103,10 @@ jobs:
       - name: Build unsigned release APK
         env:
           SETUPNINJA_FEEDBACK_URL: ${{ vars.SETUPNINJA_FEEDBACK_URL }}
-          SETUPNINJA_UPDATE_URL: ${{ vars.SETUPNINJA_UPDATE_URL }}
-          SETUPNINJA_VERSION_CODE: ${{ inputs.version_code }}
-          SETUPNINJA_VERSION_NAME: ${{ inputs.version_name }}
+          SETUPNINJA_UPDATE_URL: ${{ vars.SETUPNINJA_UPDATE_URL || needs.release-inputs.outputs.update_url }}
+          SETUPNINJA_FEEDBACK_ISSUE_URL: ${{ vars.SETUPNINJA_FEEDBACK_ISSUE_URL || needs.release-inputs.outputs.feedback_issue_url }}
+          SETUPNINJA_VERSION_CODE: ${{ needs.release-inputs.outputs.version_code }}
+          SETUPNINJA_VERSION_NAME: ${{ needs.release-inputs.outputs.version_name }}
           SETUPNINJA_UPDATE_PUBLIC_KEY: ${{ vars.SETUPNINJA_UPDATE_PUBLIC_KEY }}
         run: ./android/gradlew -p android lintRelease assembleRelease --no-daemon
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -73,10 +117,11 @@ jobs:
           retention-days: 3
 
   sign-and-publish:
-    needs: build-unsigned
+    needs:
+      - release-inputs
+      - build-unsigned
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: clayton-demo
     permissions:
       contents: write
     steps:
@@ -98,7 +143,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.DEMO_ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.DEMO_ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.DEMO_ANDROID_KEY_PASSWORD }}
-          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_CODE: ${{ needs.release-inputs.outputs.version_code }}
         run: |
           test -n "$KEYSTORE_BASE64"
           test -n "$KEYSTORE_PASSWORD"
@@ -122,18 +167,17 @@ jobs:
       - name: Build signed update bundle
         env:
           DEMO_UPDATE_SIGNING_KEY_PEM: ${{ secrets.DEMO_UPDATE_SIGNING_KEY_PEM }}
-          VERSION_CODE: ${{ inputs.version_code }}
-          VERSION_NAME: ${{ inputs.version_name }}
-          NOTES: ${{ inputs.notes }}
-          APK_BASE_URL: ${{ vars.DEMO_APK_BASE_URL }}
+          VERSION_CODE: ${{ needs.release-inputs.outputs.version_code }}
+          VERSION_NAME: ${{ needs.release-inputs.outputs.version_name }}
+          NOTES: ${{ needs.release-inputs.outputs.notes }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           test -n "$DEMO_UPDATE_SIGNING_KEY_PEM"
-          test -n "$APK_BASE_URL"
           TAG="demo-v${VERSION_NAME}-${VERSION_CODE}"
-          APK_NAME="setupninja-demo-${VERSION_CODE}.apk"
-          APK_URL="${APK_BASE_URL%/}/${TAG}/${APK_NAME}"
+          APK_NAME="setupninja-demo.apk"
+          APK_URL="https://github.com/${REPOSITORY}/releases/download/${TAG}/${APK_NAME}"
           node automation/src/release-cli.mjs \
-            --apk "signed/${APK_NAME}" \
+            --apk "signed/setupninja-demo-${VERSION_CODE}.apk" \
             --output bundle \
             --version-code "$VERSION_CODE" \
             --version-name "$VERSION_NAME" \
@@ -142,9 +186,9 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION_CODE: ${{ inputs.version_code }}
-          VERSION_NAME: ${{ inputs.version_name }}
-          NOTES: ${{ inputs.notes }}
+          VERSION_CODE: ${{ needs.release-inputs.outputs.version_code }}
+          VERSION_NAME: ${{ needs.release-inputs.outputs.version_name }}
+          NOTES: ${{ needs.release-inputs.outputs.notes }}
         run: |
           TAG="demo-v${VERSION_NAME}-${VERSION_CODE}"
           gh release create "$TAG" bundle/* \
