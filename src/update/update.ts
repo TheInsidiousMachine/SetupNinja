@@ -23,6 +23,12 @@ export type UpdateCheck = {
   manifest: UpdateManifest;
 };
 
+export type NativeUpdateStatus = {
+  ok: boolean;
+  state: string;
+  message: string;
+};
+
 type NativeBridge = {
   appInfo?: () => string;
   installUpdate?: (apkUrl: string, sha256: string, versionCode: number, versionName: string, signature: string) => string;
@@ -119,6 +125,22 @@ export function beginNativeUpdate(manifest: UpdateManifest): { ok: boolean; mess
     return { ok: result.ok === true, message: result.message };
   } catch {
     return { ok: false, message: "Android could not start the update." };
+  }
+}
+
+export function readNativeUpdateStatus(): NativeUpdateStatus | null {
+  const raw = nativeBridge()?.updateStatus?.();
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<NativeUpdateStatus>;
+    if (typeof value.state !== "string" || typeof value.message !== "string") return null;
+    return {
+      ok: value.ok === true,
+      state: value.state,
+      message: value.message,
+    };
+  } catch {
+    return null;
   }
 }
 

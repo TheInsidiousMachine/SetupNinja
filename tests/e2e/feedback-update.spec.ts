@@ -39,7 +39,7 @@ test("GitHub issue fallback opens a prefilled agent intake report", async ({ pag
           versionName: "0.2.0",
           feedbackEndpoint: "",
           updateManifestUrl: "",
-          feedbackIssueUrl: "https://github.com/TheInsidiousMachine/ClayCam/issues/new?labels=clayton-feedback,demo",
+          feedbackIssueUrl: "https://github.com/TheInsidiousMachine/SetupNinja/issues/new?labels=clayton-feedback,demo",
         }),
         openExternalUrl: (url: string) => {
           openedUrls.push(url);
@@ -64,7 +64,7 @@ test("GitHub issue fallback opens a prefilled agent intake report", async ({ pag
   expect(urls).toHaveLength(1);
   const url = new URL(urls[0]);
   expect(url.hostname).toBe("github.com");
-  expect(url.pathname).toBe("/TheInsidiousMachine/ClayCam/issues/new");
+  expect(url.pathname).toBe("/TheInsidiousMachine/SetupNinja/issues/new");
   expect(url.searchParams.get("title")).toContain("Guided setup needs a smaller first screen");
   expect(url.searchParams.get("body")).toContain("Show the photo and stock fields");
   expect(url.searchParams.get("labels")).toContain("feedback-workflow");
@@ -82,7 +82,7 @@ test("a configured relay receives feedback and a newer gated build can start ins
           versionName: "0.1.0",
           feedbackEndpoint: "https://relay.example.test/v1/feedback",
           updateManifestUrl: "https://relay.example.test/v1/update/demo.json",
-          feedbackIssueUrl: "https://github.com/TheInsidiousMachine/ClayCam/issues/new",
+          feedbackIssueUrl: "https://github.com/TheInsidiousMachine/SetupNinja/issues/new",
         }),
         installUpdate: (...args: unknown[]) => {
           installCalls.push(args);

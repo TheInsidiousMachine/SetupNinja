@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { beginNativeUpdate, checkForUpdate, readAppInfo, type UpdateCheck } from "../update/update";
+import { RefreshCw } from "lucide-react";
+import { beginNativeUpdate, checkForUpdate, readAppInfo, readNativeUpdateStatus, type UpdateCheck } from "../update/update";
 
 export function UpdatePanel() {
   const appInfo = useMemo(readAppInfo, []);
@@ -32,7 +33,29 @@ export function UpdatePanel() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [check]);
 
+  useEffect(() => {
+    if (state !== "installing") return;
+    const id = window.setInterval(() => {
+      const native = readNativeUpdateStatus();
+      if (!native) return;
+      setMessage(native.message);
+      if (!native.ok) setState("error");
+      if (native.state === "installing") setState("installing");
+      if (native.state === "failed") setState("error");
+    }, 1_500);
+    return () => window.clearInterval(id);
+  }, [state]);
+
   if (!appInfo.updateManifestUrl) return null;
+
+  const latestPublished = result?.manifest.publishedAt
+    ? new Date(result.manifest.publishedAt).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    })
+    : "";
 
   const install = () => {
     if (!result?.available) return;
@@ -46,13 +69,17 @@ export function UpdatePanel() {
       <div>
         <p className="step-label">Demo channel · v{appInfo.versionName}</p>
         <h2 id="update-title">App updates</h2>
-        {message ? <p className="update-message" role="status">{message}</p> : null}
+        <p className="update-message" role="status">
+          {message || "SetupNinja checks the public GitHub release feed when the app opens or resumes."}
+        </p>
         {result?.available && result.manifest.notes ? <p className="update-notes">{result.manifest.notes}</p> : null}
+        {latestPublished ? <p className="update-notes">Latest release: {latestPublished}</p> : null}
       </div>
       {state === "ready" ? (
         <button type="button" className="btn primary" onClick={install}>Install update</button>
       ) : (
         <button type="button" className="btn" onClick={() => void check()} disabled={state === "checking" || state === "installing"}>
+          <RefreshCw aria-hidden="true" />
           {state === "checking" ? "Checking…" : state === "installing" ? "Downloading…" : "Check for update"}
         </button>
       )}

@@ -71,7 +71,7 @@ export function loadWorkerConfig(env = process.env) {
     dryRun,
     repoRoot,
     dataRoot,
-    worktreeRoot: path.resolve(env.FEEDBACK_WORKTREE_ROOT ?? path.join(repoRoot, "..", ".claycam-feedback-worktrees")),
+    worktreeRoot: path.resolve(env.FEEDBACK_WORKTREE_ROOT ?? path.join(repoRoot, "..", ".setupninja-feedback-worktrees")),
     baseRef: env.FEEDBACK_BASE_REF ?? "origin/main",
     dispatcherArgv,
     testCommands,

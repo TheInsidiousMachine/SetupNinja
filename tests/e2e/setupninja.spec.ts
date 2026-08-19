@@ -47,7 +47,7 @@ test("guided setup blocks invalid geometry and generates the current job", async
 
   await page.getByRole("button", { name: "Pocket", exact: true }).click();
   await page.getByRole("spinbutton", { name: "X" }).fill("40");
-  await page.getByRole("button", { name: "Generate from guided setup" }).click();
+  await page.getByRole("button", { name: "Generate proof program" }).click();
   await expect(page.getByRole("alert")).toContainText("fit completely within the stock");
 
   await page.getByRole("spinbutton", { name: "Width" }).nth(0).fill("60");
@@ -59,7 +59,7 @@ test("guided setup blocks invalid geometry and generates the current job", async
   await page.getByRole("spinbutton", { name: "Depth" }).nth(1).fill("15");
   await page.getByRole("spinbutton", { name: "Depth below top" }).fill("3");
   await page.getByRole("textbox", { name: "Part name" }).fill("Phone pocket");
-  await page.getByRole("button", { name: "Generate from guided setup" }).click();
+  await page.getByRole("button", { name: "Generate proof program" }).click();
 
   await expect(page.getByRole("heading", { name: "Phone pocket" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Run checks" })).toBeEnabled();

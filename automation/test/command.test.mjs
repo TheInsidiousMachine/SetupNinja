@@ -33,7 +33,7 @@ test("expands only allowlisted placeholders without parsing feedback as commands
 });
 
 test("runs argv directly without shell interpretation", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-command-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-command-"));
   const marker = path.join(root, "injected");
   const result = await runArgv(
     [process.execPath, "-e", "process.stdout.write(process.argv[1])", `safe; touch ${marker}`],

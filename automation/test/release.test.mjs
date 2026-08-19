@@ -8,7 +8,7 @@ import test from "node:test";
 import { writeReleaseBundle } from "../src/release.mjs";
 
 test("writes a checksum-pinned manifest with the native canonical RSA-SHA256 signature", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-release-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-release-"));
   const apkPath = path.join(root, "source.apk");
   const outputDir = path.join(root, "out");
   await writeFile(apkPath, "test apk bytes");
@@ -38,7 +38,7 @@ test("writes a checksum-pinned manifest with the native canonical RSA-SHA256 sig
 });
 
 test("requires HTTPS artifact URLs and a signing key", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-release-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-release-"));
   const apkPath = path.join(root, "source.apk");
   await writeFile(apkPath, "apk");
   await assert.rejects(writeReleaseBundle({
@@ -52,7 +52,7 @@ test("requires HTTPS artifact URLs and a signing key", async () => {
 });
 
 test("allows the encrypted private Tailscale artifact route", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "claycam-release-tailnet-"));
+  const root = await mkdtemp(path.join(tmpdir(), "setupninja-release-tailnet-"));
   const apkPath = path.join(root, "source.apk");
   await writeFile(apkPath, "apk");
   const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });

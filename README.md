@@ -6,9 +6,7 @@ SetupNinja is built around a simple shop promise: take a picture of the print, e
 
 ## Source Of Truth
 
-The product direction now comes from the recorded call at:
-
-`/home/timothybright/Projects/ClayCam/Call Clayton Bubba Allen_260818_202000.m4a`
+The product direction now comes from the recorded Clayton kickoff call. The audio file is stored locally in this workspace and is intentionally not committed.
 
 The transcript, product brief, and non-negotiables are captured in [docs/source-of-truth.md](docs/source-of-truth.md).
 

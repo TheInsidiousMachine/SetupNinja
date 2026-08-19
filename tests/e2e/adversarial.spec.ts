@@ -269,7 +269,7 @@ test("the primary workflow is operable with the keyboard alone", async ({ page }
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Pocket", exact: true })).toHaveAttribute("aria-pressed", "true");
 
-  await tabTo(page, "Generate from guided setup");
+  await tabTo(page, "Generate proof program");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Guided part" })).toBeVisible();
   await waitForReady(page);
@@ -367,7 +367,7 @@ test("editing a generated guided draft immediately invalidates its old proof pro
   await page.goto("/");
   await waitForReady(page);
   await page.getByRole("button", { name: "Guided setup" }).click();
-  await page.getByRole("button", { name: "Generate from guided setup" }).click();
+  await page.getByRole("button", { name: "Generate proof program" }).click();
   await waitForReady(page);
   await completeVerification(page);
 
